@@ -1,0 +1,5 @@
+{
+  "model_name": "moirai-R-small",
+  "seed_value": 123,
+  "prediction_field_name": "prediction"
+}
