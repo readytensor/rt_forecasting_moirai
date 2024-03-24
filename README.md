@@ -1,8 +1,8 @@
-# Amazon Chronos Forecasting Model
+# MOIRAI Forecasting Model
 
-This is an implementation of the Amazon Chronos forecasting model using the Ready Tensor specifications. Chronos is a family of pretrained time series forecasting models based on language model architectures. For more information, see [Amazon Chronos](https://github.com/amazon-science/chronos-forecasting).
+This is an implementation of the MOIRAI forecasting model using the Ready Tensor specifications. MOIRAI is a family of pretrained time series forecasting models based on language model architectures. For more information, see [MOIRAI](https://github.com/SalesforceAIResearch/uni2ts).
 
-This repository contains branches for each of the 5 models in the Chronos family. The branches are named `tiny`, `mini`, `small`, `base` and `large`. To use a different model, switch to the corresponding branch. This branch (`main`) uses the `chronos-t5-small` model (the default model).
+This repository contains branches for each of the 3 models in the MOIRAI family. The branches are named `small`, `base` and `large`. To use a different model, switch to the corresponding branch. This branch (`main`) uses the `moirai-base` model (the default model).
 
 ## Project Description
 
@@ -28,7 +28,7 @@ The following are the requirements for using your data with this model:
 
 Here are the highlights of this implementation: <br/>
 
-- A **Chronos Forecaster** model built by Amazon-Science.
+- A **MOIRAI Forecaster** model built by SalesForce.
   Additionally, the implementation contains the following features:
 - **Data Validation**: Pydantic data validation is used for the schema, training and test files, as well as the inference request data.
 - **Error handling and logging**: Python's logging module is used for logging and key functions include exception handling.
@@ -46,7 +46,7 @@ The following is the directory structure of the project:
   - **`config/`**: for configuration files for data preprocessing, model hyperparameters, paths, etc.
   - **`data_models/`**: for data models for input validation including the schema, training and test files. It also contains the data model for the batch prediction results.
   - **`schema/`**: for schema handler script. This script contains the class that provides helper getters/methods for the data schema.
-  - **`prediction/`**: Scripts for the Chronos forecaster model.
+  - **`prediction/`**: Scripts for the MOIRAI forecaster model.
   - **`logger.py`**: This script contains the logger configuration using **logging** module.
   - **`train.py`**: This script is used to train the model. This script is a no-op because the model is pretrained and does not require training. It is maintained here to conform to the Ready Tensor model implementation structure which requires a `train.py` script. The script will log a message indicating that the model is pretrained and does not require training.
   - **`predict.py`**: This script is used to run batch predictions using the trained model. It loads the artifacts and creates and saves the predictions in a file called `predictions.csv` in the path `./model_inputs_outputs/outputs/predictions/`.
@@ -66,17 +66,15 @@ In this section we cover the following:
 - How to run the model implementation locally (without Docker)
 - How to run the model implementation with Docker
 
-### Choosing Chronos Model.
+### Choosing MOIRAI Model.
 
-Chronos is a family of timeseries models. The following are the available models:
+MOIRAI is a family of timeseries models. The following are the available models:
 
-|      Model       | Parameters |      Based on      |
-| :--------------: | :--------: | :----------------: |
-| chronos-t5-tiny  |     8M     | t5-efficient-tiny  |
-| chronos-t5-mini  |    20M     | t5-efficient-mini  |
-| chronos-t5-small |    46M     | t5-efficient-small |
-| chronos-t5-base  |    200M    | t5-efficient-base  |
-| chronos-t5-large |    710M    | t5-efficient-large |
+|      Model       | Parameters |
+| :--------------: | :--------: |
+| moirai-R-small |    14M     |
+| moirai-R-base  |    91M    |
+| moirai-R-large |    311    |
 
 To switch the model, change the variable `model_name` in `src/config/model_config.json` to the desired model name.
 
