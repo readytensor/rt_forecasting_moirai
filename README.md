@@ -2,7 +2,7 @@
 
 This is an implementation of the MOIRAI forecasting model using the Ready Tensor specifications. MOIRAI is a family of pretrained time series forecasting models based on language model architectures. For more information, see [MOIRAI](https://github.com/SalesforceAIResearch/uni2ts).
 
-This repository contains branches for each of the 3 models in the MOIRAI family. The branches are named `small`, `base` and `large`. To use a different model, switch to the corresponding branch. This branch (`main`) uses the `moirai-base` model (the default model).
+This repository contains branches for each of the 3 models in the MOIRAI family. The branches are named `small`, `base` and `large`. To use a different model, switch to the corresponding branch. This branch (`main`) uses the `moirai-R-base` model (the default model).
 
 ## Project Description
 
