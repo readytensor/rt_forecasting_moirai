@@ -25,13 +25,13 @@ MODEL_PARAMS_FNAME = "model_params.save"
 
 
 class Forecaster:
-    """Chronos Timeseries Forecaster.
+    """MOIRAI Timeseries Forecaster.
 
     This class provides a consistent interface that can be used with other
     Forecaster models.
     """
 
-    MODEL_NAME = "Chronos_Timeseries_Forecaster"
+    MODEL_NAME = "MOIRAI_Timeseries_Forecaster"
     SERIES_PER_FORECAST = 10
 
     def __init__(
@@ -44,7 +44,7 @@ class Forecaster:
         num_samples: int = 20,
         **kwargs,
     ):
-        """Construct a new Chronos Forecaster."""
+        """Construct a new MOIRAI Forecaster."""
         self.model_name = model_name
         self.data_schema = data_schema
         self.top_k = top_k
