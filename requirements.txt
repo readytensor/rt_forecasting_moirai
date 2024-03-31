@@ -127,7 +127,6 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rpds-py==0.18.0
 safetensors==0.4.2
--e git+https://github.com/readytensor/rt_forecasting_moirai.git@e6243f14731931ce549dd0b5a8f56b684292ab40#egg=salesforce_uni2ts
 scipy==1.11.4
 Send2Trash==1.8.2
 six==1.16.0
