@@ -44,6 +44,8 @@ RUN python /opt/src/prediction/download_model.py
 
 WORKDIR /opt/
 COPY ./pyproject.toml  /opt/
+COPY ./LICENSE.txt  /opt/
+
 RUN python3.9 -m pip install -e '.[notebook]'
 
 
