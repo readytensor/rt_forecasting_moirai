@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y python3.10 python3-pip \
+    && apt-get update \
+    && apt-get install -y python3.10 python3-pip python3.10-distutils python3.10-venv \
     && ln -sf /usr/bin/python3.10 /usr/bin/python \
     && ln -sf /usr/bin/python3.10 /usr/bin/python3 \
     && python3.10 -m pip install --upgrade pip \
