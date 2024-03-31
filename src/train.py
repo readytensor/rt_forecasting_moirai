@@ -44,11 +44,7 @@ def run_training(
 
             # use default hyperparameters to train model
             logger.info(f"Training model ({model_config['model_name']})...")
-            model = train_predictor_model(
-                model_name=model_config["model_name"],
-                prediction_length=data_schema.forecast_length,
-                **default_hyperparameters,
-            )
+            model = train_predictor_model()
 
     except Exception as exc:
         err_msg = "Error occurred during training."
