@@ -11,21 +11,23 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TRANSFORMERS_CACHE="/opt" \
     HF_HOME="/opt"
 
-# Install OS dependencies and Python 3.10
+# Install OS dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
     dos2unix \
     git \
     software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update \
-    && apt-get install -y python3.10 python3-pip python3.10-distutils python3.10-venv \
-    && ln -sf /usr/bin/python3.10 /usr/bin/python \
-    && ln -sf /usr/bin/python3.10 /usr/bin/python3 \
-    && python3.10 -m pip install --upgrade pip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && add-apt-repository ppa:deadsnakes/ppa
+
+# Install Python 3.10 and its distutils, avoiding the immediate pip upgrade
+RUN apt-get update && apt-get install -y python3.10 python3-pip python3.10-distutils python3.10-venv
+
+# Ensure we're using the correct pip and upgrade it
+RUN python3.10 -m pip install --upgrade pip setuptools wheel
+
+# Clean up
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Copy source code into image and set permissions
 COPY src /opt/src
 COPY ./entry_point.sh ./fix_line_endings.sh /opt/
