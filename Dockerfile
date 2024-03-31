@@ -11,20 +11,42 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TRANSFORMERS_CACHE="/opt" \
     HF_HOME="/opt"
 
-# Install OS dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
+# Install build dependencies
+RUN apt-get -y update && apt-get install -y --no-install-recommends \
     ca-certificates \
     dos2unix \
-    git \
-    software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa
+    wget \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    zlib1g-dev \
+    liblzma-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.10 and its distutils, avoiding the immediate pip upgrade
-RUN apt-get update && apt-get install -y python3.10 python3-pip python3.10-distutils python3.10-venv
+# Download and extract Python 3.11
+RUN wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz \
+    && tar -xzf Python-3.11.0.tgz \
+    && cd Python-3.11.0 \
+    && ./configure --enable-optimizations \
+    && make -j 8 \
+    && make altinstall
 
-# Ensure we're using the correct pip and upgrade it
-RUN python3.10 -m pip install --upgrade pip setuptools wheel
+# Cleanup the source
+RUN rm -rf Python-3.11.0.tgz Python-3.11.0
+
+# Install and upgrade pip for Python 3.11
+RUN wget https://bootstrap.pypa.io/get-pip.py \
+    && python3.11 get-pip.py \
+    && python3.11 -m pip install --upgrade pip \
+    && rm get-pip.py
+
+
+# Add a symbolic link to python3 (optional)
+RUN ln -s /usr/local/bin/python3.11 /usr/local/bin/python3 \
+    && ln -s /usr/local/bin/python3.11 /usr/local/bin/python
 
 # Clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -34,7 +56,7 @@ COPY ./entry_point.sh ./fix_line_endings.sh /opt/
 
 # Copy just the requirements.txt first to leverage Docker cache
 COPY ./requirements.txt /opt/
-RUN python3.10 -m pip install --no-cache-dir -r /opt/requirements.txt
+RUN python3.11 -m pip install --no-cache-dir -r /opt/requirements.txt
 
 
 # Copy model config file and model downloading script into the image
@@ -48,7 +70,7 @@ WORKDIR /opt/
 COPY ./pyproject.toml ./LICENSE.txt ./README.md /opt/
 
 
-RUN python3.10 -m pip install -e '.[notebook]'
+RUN python3.11 -m pip install -e '.[notebook]'
 
 RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && /opt/fix_line_endings.sh "/opt/src" \
