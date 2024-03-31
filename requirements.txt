@@ -6,3 +6,4 @@ transformers==4.39.0
 pandas==2.1.4
 torch==2.2.1
 gluonts==0.14.4
+lightning==2.2.1
