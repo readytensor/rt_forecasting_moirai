@@ -33,3 +33,4 @@ venv.bak/
 /tmp
 
 .DS_Store
+*.ckpt

@@ -58,6 +58,7 @@ def run_batch_predictions(
     input_schema_dir_path: str = paths.INPUT_SCHEMA_DIR,
     model_config_file_path: str = paths.MODEL_CONFIG_FILE_PATH,
     predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
+    default_hyperparameters_file_path: str = paths.DEFAULT_HYPERPARAMETERS_FILE_PATH,
     train_dir: str = paths.TRAIN_DIR,
     test_dir: str = paths.TEST_DIR,
     predictions_file_path: str = paths.PREDICTIONS_FILE_PATH,
@@ -76,6 +77,7 @@ def run_batch_predictions(
         input_schema_dir_path (str): Path to the input schema directory.
         model_config_file_path (str): Path to the model configuration file.
         predictor_dir_path (str): Path to the directory containing the pre-trained predictor model.
+        default_hyperparameters_file_path (str): Path to the default hyperparameters file.
         train_dir (str): Directory path for the train data.
         test_dir (str): Directory path for the test data.
         predictions_file_path (str): Path where the predictions file will be saved.
@@ -90,6 +92,11 @@ def run_batch_predictions(
 
             logger.info("Loading model config...")
             model_config = read_json_as_dict(model_config_file_path)
+
+            logger.info("Loading hyperparameters...")
+            default_hyperparameters = read_json_as_dict(
+                default_hyperparameters_file_path
+            )
 
             logger.info("Setting seeds...")
             set_seeds(model_config["seed_value"])
@@ -112,8 +119,14 @@ def run_batch_predictions(
             validated_test_data = validate_data(
                 data=test_data, data_schema=data_schema, is_train=False
             )
+
             logger.info("Loading predictor model...")
-            predictor_model = load_predictor_model(predictor_dir_path)
+            predictor_model = load_predictor_model(
+                model_name=model_config["model_name"],
+                prediction_length=data_schema.forecast_length,
+                data_schema=data_schema,
+                **default_hyperparameters,
+            )
 
             logger.info("Making predictions...")
             predictions = predict_with_model(

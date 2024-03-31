@@ -6,7 +6,7 @@ import json
 def download_pretrained_model_if_not_exists(directory_path, model_name):
     print(f"Downloading pretrained model {model_name}...")
     files_urls = {
-        "model.ckpt": f"https://huggingface.co/Salesforce/{model_name}/blob/main/model.ckpt",
+        "model.ckpt": f"https://huggingface.co/Salesforce/{model_name}/resolve/main/model.ckpt",
     }
 
     if not os.path.exists(directory_path):

@@ -1,7 +1,7 @@
 from config import paths
 from logger import get_logger, log_error
 from schema.data_schema import load_json_data_schema
-from prediction.predictor_model import train_predictor_model, save_predictor_model
+from prediction.predictor_model import train_predictor_model
 from utils import ResourceTracker, set_seeds, read_json_as_dict
 
 
@@ -11,7 +11,6 @@ logger = get_logger(task_name="train")
 def run_training(
     input_schema_dir_path: str = paths.INPUT_SCHEMA_DIR,
     model_config_file_path: str = paths.MODEL_CONFIG_FILE_PATH,
-    predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
     default_hyperparameters_file_path: str = paths.DEFAULT_HYPERPARAMETERS_FILE_PATH,
 ) -> None:
     """
@@ -19,7 +18,6 @@ def run_training(
     Args:
         - input_schema_dir_path (str): The path to the input schema directory.
         - model_config_file_path (str): The path to the model config file.
-        - predictor_dir_path (str): The path to the predictor directory.
         - default_hyperparameters_file_path (str): The path to the default hyperparameters file.
     Returns:
         - None
@@ -48,13 +46,9 @@ def run_training(
             logger.info(f"Training model ({model_config['model_name']})...")
             model = train_predictor_model(
                 model_name=model_config["model_name"],
-                data_schema=data_schema,
+                prediction_length=data_schema.forecast_length,
                 **default_hyperparameters,
             )
-
-        # save predictor model
-        logger.info("Saving model...")
-        save_predictor_model(model, predictor_dir_path)
 
     except Exception as exc:
         err_msg = "Error occurred during training."
