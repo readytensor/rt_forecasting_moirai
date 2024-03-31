@@ -26,6 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy source code into image and set permissions
+COPY src /opt/src
+COPY ./entry_point.sh ./fix_line_endings.sh /opt/
+
 # Copy just the requirements.txt first to leverage Docker cache
 COPY ./requirements.txt /opt/
 RUN python3.9 -m pip install --no-cache-dir -r /opt/requirements.txt
@@ -42,9 +46,7 @@ WORKDIR /opt/
 COPY ./pyproject.toml  /opt/
 RUN python3.9 -m pip install -e '.[notebook]'
 
-# Copy source code into image and set permissions
-COPY src /opt/src
-COPY ./entry_point.sh ./fix_line_endings.sh /opt/
+
 
 
 
