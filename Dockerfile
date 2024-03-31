@@ -38,8 +38,8 @@ COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
 # Download the intended model - we are caching the model in the image
 RUN python /opt/src/prediction/download_model.py
 
-WORKDIR /opt
-COPY pyproject.toml  /opt/
+WORKDIR /opt/
+COPY ./pyproject.toml  /opt/
 RUN python3.9 -m pip install -e '.[notebook]'
 
 # Copy source code into image and set permissions
