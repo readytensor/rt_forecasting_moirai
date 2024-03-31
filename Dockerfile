@@ -43,14 +43,10 @@ COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
 RUN python /opt/src/prediction/download_model.py
 
 WORKDIR /opt/
-COPY ./pyproject.toml  /opt/
-COPY ./LICENSE.txt  /opt/
+COPY ./pyproject.toml ./LICENSE.txt ./README.md /opt/
+
 
 RUN python3.9 -m pip install -e '.[notebook]'
-
-
-
-
 
 RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && /opt/fix_line_endings.sh "/opt/src" \
