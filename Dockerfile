@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./requirements.txt /opt/
 RUN python3.9 -m pip install --no-cache-dir -r /opt/requirements.txt
 
+
 # Copy model config file and model downloading script into the image
 COPY ./src/config/model_config.json /opt/src/config/model_config.json
 COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
@@ -37,9 +38,16 @@ COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
 # Download the intended model - we are caching the model in the image
 RUN python /opt/src/prediction/download_model.py
 
+WORKDIR /opt
+COPY pyproject.toml  /opt/
+RUN python3.9 -m pip install -e '.[notebook]'
+
 # Copy source code into image and set permissions
 COPY src /opt/src
 COPY ./entry_point.sh ./fix_line_endings.sh /opt/
+
+
+
 RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && /opt/fix_line_endings.sh "/opt/src" \
     && /opt/fix_line_endings.sh "/opt/entry_point.sh" \
