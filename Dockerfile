@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TRANSFORMERS_CACHE="/opt" \
     HF_HOME="/opt"
 
-# Install OS dependencies, Git, Python, and Pip in one layer to reduce image size and build time
+# Install OS dependencies and Python 3.10
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
@@ -19,20 +19,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y python3.9 python3-pip \
-    && ln -sf /usr/bin/python3.9 /usr/bin/python \
-    && ln -sf /usr/bin/python3.9 /usr/bin/python3 \
-    && python3.9 -m pip install --upgrade pip \
+    && apt-get update && apt-get install -y python3.10 python3-pip \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python3 \
+    && python3.10 -m pip install --upgrade pip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 # Copy source code into image and set permissions
 COPY src /opt/src
 COPY ./entry_point.sh ./fix_line_endings.sh /opt/
 
 # Copy just the requirements.txt first to leverage Docker cache
 COPY ./requirements.txt /opt/
-RUN python3.9 -m pip install --no-cache-dir -r /opt/requirements.txt
+RUN python3.10 -m pip install --no-cache-dir -r /opt/requirements.txt
 
 
 # Copy model config file and model downloading script into the image
@@ -46,7 +45,7 @@ WORKDIR /opt/
 COPY ./pyproject.toml ./LICENSE.txt ./README.md /opt/
 
 
-RUN python3.9 -m pip install -e '.[notebook]'
+RUN python3.10 -m pip install -e '.[notebook]'
 
 RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && /opt/fix_line_endings.sh "/opt/src" \
