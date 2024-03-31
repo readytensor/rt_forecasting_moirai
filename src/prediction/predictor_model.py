@@ -199,7 +199,7 @@ class MoiraiPredictor(Predictor):
     def map_frequency(self, frequency: str) -> str:
 
         if self.data_schema.time_col_dtype == "INT":
-            return 1
+            return "D"
 
         frequency = frequency.lower()
         if frequency == "yearly":
@@ -235,13 +235,19 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
     all_forecasts = []
     for _, series in zip(all_ids, all_series):
+        start = (
+            series[schema.time_col].iloc[0]
+            if schema.frequency not in ["INT", "OTHER"]
+            else "2020-01-01"
+        )
+        print(schema.frequency)
         forecast = list(
             model.predict(
                 dataset=[
                     {
                         "target": series[schema.target],
                         "start": pd.Period(
-                            series[schema.time_col].iloc[0],
+                            start,
                             model.map_frequency(schema.frequency),
                         ),
                     }
