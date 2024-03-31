@@ -257,6 +257,12 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
     return {k: v for k, v in zip(all_ids, all_forecasts)}
 
 
+def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
+    model_path = os.path.join(model_dir, "model.txt")
+    with open(model_path, "w") as f:
+        f.write("dummy model")
+
+
 def load_predictor_model(
     model_name: str, data_schema: ForecastingSchema, prediction_length: int, **kwargs
 ) -> MoiraiPredictor:

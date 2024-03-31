@@ -1,7 +1,7 @@
 from config import paths
 from logger import get_logger, log_error
 from schema.data_schema import load_json_data_schema
-from prediction.predictor_model import train_predictor_model
+from prediction.predictor_model import train_predictor_model, save_predictor_model
 from utils import ResourceTracker, set_seeds, read_json_as_dict
 
 
@@ -45,6 +45,8 @@ def run_training(
             # use default hyperparameters to train model
             logger.info(f"Training model ({model_config['model_name']})...")
             model = train_predictor_model()
+
+            save_predictor_model(model=model, model_dir=paths.PREDICTOR_DIR_PATH)
 
     except Exception as exc:
         err_msg = "Error occurred during training."
