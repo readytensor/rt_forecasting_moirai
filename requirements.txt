@@ -12,7 +12,7 @@ tensorboard==2.16.2
 multiprocess==0.70.16
 huggingface-hub==0.22.2
 datasets~=2.17.1
-jax==0.4.25
+jax[cpu]
 jupyter==1.0.0
 ipywidgets==8.1.2
 matplotlib==3.8.3
