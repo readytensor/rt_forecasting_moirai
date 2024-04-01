@@ -237,7 +237,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
     for _, series in zip(all_ids, all_series):
         start = (
             series[schema.time_col].iloc[0]
-            if schema.frequency not in ["INT", "OTHER"]
+            if schema.time_col_dtype not in ["INT", "OTHER"]
             else "2020-01-01"
         )
         print(schema.frequency)
