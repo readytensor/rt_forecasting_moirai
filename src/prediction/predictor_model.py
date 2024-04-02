@@ -240,7 +240,6 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
             if schema.time_col_dtype not in ["INT", "OTHER"]
             else "2020-01-01"
         )
-        print(schema.frequency)
         forecast = list(
             model.predict(
                 dataset=[
