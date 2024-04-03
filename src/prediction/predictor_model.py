@@ -19,6 +19,8 @@ from uni2ts.model.moirai.forecast import MoiraiForecast
 from schema.data_schema import ForecastingSchema
 from prediction.download_model import download_pretrained_model_if_not_exists
 
+count_patches = {}
+
 
 class CustomizableMoiraiForecast(MoiraiForecast):
     @contextmanager
@@ -154,11 +156,13 @@ class MoiraiPredictor(Predictor):
             if self.patch_size is not None
             else self.prediction_net.hparams.patch_size
         )
+
         if self.patch_size == "auto_dataset":
             patch_size = self._get_best_patch_size(
                 dataset, self.batch_size, context_length, prediction_length
             )
-            print("Selected patch_size:", patch_size)
+
+            count_patches[patch_size] = count_patches.get(patch_size, 0) + 1
 
         with self.prediction_net.custom_config(
             context_length=context_length,
@@ -259,6 +263,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
         all_forecasts.append(median_forecast)
     all_forecasts = np.array(all_forecasts)
+    print("Number of selected patch sizes:", count_patches)
     return {k: v for k, v in zip(all_ids, all_forecasts)}
 
 
