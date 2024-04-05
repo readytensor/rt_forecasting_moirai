@@ -29,32 +29,36 @@ from uni2ts.common.typing import GenFunc
 from uni2ts.data.dataset import EvalDataset, SampleTimeSeriesType, TimeSeriesDataset
 from uni2ts.data.indexer import HuggingFaceDatasetIndexer
 from uni2ts.transform import Identity, Transformation
+from config import paths
 
 from ._base import DatasetBuilder
 
 
 def _from_long_dataframe(
     df: pd.DataFrame,
+    target_col: str,
+    id_col: str,
 ) -> tuple[GenFunc, Features]:
-    items = df.item_id.unique()
+
+    items = df[id_col].unique()
 
     def example_gen_func() -> Generator[dict[str, Any], None, None]:
         for item_id in items:
-            item_df = df.query(f'item_id == "{item_id}"').drop("item_id", axis=1)
+            item_df = df.query(f'{id_col} == "{item_id}"').drop(id_col, axis=1)
             yield {
-                "target": item_df.to_numpy(),
+                "target": item_df[target_col].to_numpy(),
                 "start": item_df.index[0],
                 "freq": pd.infer_freq(item_df.index),
-                "item_id": item_id,
+                id_col: item_id,
             }
 
     features = Features(
-        dict(
-            item_id=Value("string"),
-            start=Value("timestamp[s]"),
-            freq=Value("string"),
-            target=Sequence(Value("float32")),
-        )
+        {
+            id_col: Value("string"),
+            "start": Value("timestamp[s]"),
+            "freq": Value("string"),
+            "target": Sequence(Value("float32")),
+        }
     )
 
     return example_gen_func, features
@@ -112,7 +116,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
     dataset: str
     weight: float = 1.0
     sample_time_series: Optional[SampleTimeSeriesType] = SampleTimeSeriesType.NONE
-    storage_path: Path = env.CUSTOM_DATA_PATH
+    storage_path: Path = paths.STORED_DATASET_PATH
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
@@ -120,7 +124,9 @@ class SimpleDatasetBuilder(DatasetBuilder):
     def build_dataset(
         self,
         file: Path,
-        dataset_type: str,
+        time_col: str,
+        id_col: str,
+        target_col: str,
         offset: int = None,
         date_offset: pd.Timestamp = None,
     ):
@@ -129,7 +135,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
             f"Got offset: {offset}, date_offset: {date_offset}"
         )
 
-        df = pd.read_csv(file, index_col=0, parse_dates=True)
+        df = pd.read_csv(file, index_col=time_col, parse_dates=True)
 
         if offset is not None:
             df = df.iloc[:offset]
@@ -137,21 +143,19 @@ class SimpleDatasetBuilder(DatasetBuilder):
         if date_offset is not None:
             df = df[df.index <= date_offset]
 
-        if dataset_type == "long":
-            example_gen_func, features = _from_long_dataframe(df)
-        elif dataset_type == "wide":
-            example_gen_func, features = _from_wide_dataframe(df)
-        elif dataset_type == "wide_multivariate":
-            example_gen_func, features = _from_wide_dataframe_multivariate(df)
-        else:
-            raise ValueError(
-                f"Unrecognized dataset_type, {dataset_type}."
-                " Valid options are 'long', 'wide', and 'wide_multivariate'."
-            )
+        example_gen_func, features = _from_long_dataframe(
+            df, id_col=id_col, target_col=target_col
+        )
 
         hf_dataset = datasets.Dataset.from_generator(
             example_gen_func, features=features
         )
+
+        print(hf_dataset)
+
+        for i in hf_dataset:
+            print(i)
+
         hf_dataset.info.dataset_name = self.dataset
         hf_dataset.save_to_disk(self.storage_path / self.dataset)
 
@@ -177,7 +181,7 @@ class SimpleEvalDatasetBuilder(DatasetBuilder):
     prediction_length: Optional[int]
     context_length: Optional[int]
     patch_size: Optional[int]
-    storage_path: Path = env.CUSTOM_DATA_PATH
+    storage_path: Path = paths.STORED_DATASET_PATH
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
@@ -230,7 +234,7 @@ def generate_eval_builders(
     prediction_lengths: list[int],
     context_lengths: list[int],
     patch_sizes: list[int],
-    storage_path: Path = env.CUSTOM_DATA_PATH,
+    storage_path: Path = paths.STORED_DATASET_PATH,
 ) -> list[SimpleEvalDatasetBuilder]:
     return [
         SimpleEvalDatasetBuilder(

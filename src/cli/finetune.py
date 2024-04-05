@@ -21,8 +21,10 @@ import torch
 from hydra.utils import call, get_class, instantiate
 from omegaconf import DictConfig
 from torch.utils.data import Dataset, DistributedSampler
-
+import importlib
+import yaml
 from uni2ts.common import hydra_util  # noqa: hydra resolvers
+from utils import read_json_as_dict
 
 
 class DataModule(L.LightningDataModule):
@@ -94,33 +96,49 @@ class DataModule(L.LightningDataModule):
         )
 
 
-@hydra.main(version_base="1.3", config_path="conf/finetune", config_name="default")
-def main(cfg: DictConfig):
-    if cfg.tf32:
-        assert cfg.trainer.precision == 32
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+from uni2ts.model.moirai.finetune import MoiraiFinetuneSmall, FinetuneTrainer
 
-    model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(
-        **call(cfg.model._args_, _convert_="all"),
-    )
-    if cfg.compile:
-        model.module.compile(mode=cfg.compile)
-    trainer: L.Trainer = instantiate(cfg.trainer)
-    train_dataset: Dataset = instantiate(cfg.data).load_dataset(
-        model.create_train_transform()
-    )
-    val_dataset: Optional[Dataset] = (
-        instantiate(cfg.val_data).load_dataset(model.create_val_transform)
-        if "val_data" in cfg
-        else None
-    )
-    L.seed_everything(cfg.seed + trainer.logger.version, workers=True)
-    trainer.fit(
-        model,
-        datamodule=DataModule(cfg, train_dataset, val_dataset),
-    )
+
+# @hydra.main(version_base="1.3", config_path="conf/finetune", config_name="default")
+# def main(cfg: DictConfig):
+#     if cfg.tf32:
+#         assert cfg.trainer.precision == 32
+#         torch.backends.cuda.matmul.allow_tf32 = True
+#         torch.backends.cudnn.allow_tf32 = True
+
+#     model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(
+#         **call(cfg.model._args_, _convert_="all"),
+#     )
+
+#     model = MoiraiFinetuneSmall()
+#     if cfg.compile:
+#         model.compile(mode=cfg.compile)
+#     trainer: L.Trainer = instantiate(cfg.trainer)
+#     train_dataset: Dataset = instantiate(cfg.data).load_dataset(
+#         model.create_train_transform()
+#     )
+#     val_dataset: Optional[Dataset] = (
+#         instantiate(cfg.val_data).load_dataset(model.create_val_transform)
+#         if "val_data" in cfg
+#         else None
+#     )
+#     L.seed_everything(cfg.seed + trainer.logger.version, workers=True)
+#     trainer.fit(
+#         model,
+#         datamodule=DataModule(cfg, train_dataset, val_dataset),
+#     )
 
 
 if __name__ == "__main__":
-    main()
+    from uni2ts.data.builder.simple import SimpleDatasetBuilder, generate_eval_builders
+    from uni2ts.data.builder import ConcatDatasetBuilder
+
+    # main()
+    model = MoiraiFinetuneSmall.get_model()
+    print(model)
+
+    trainer = FinetuneTrainer()
+
+    dataset = SimpleDatasetBuilder(dataset="banksgg").load_dataset(
+        model.create_train_transform()
+    )

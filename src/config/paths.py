@@ -61,3 +61,5 @@ PREPROCESSING_CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "preprocessing.json")
 DEFAULT_HYPERPARAMETERS_FILE_PATH = os.path.join(
     CONFIG_DIR, "default_hyperparameters.json"
 )
+
+STORED_DATASET_PATH = os.path.join(MODEL_ARTIFACTS_PATH, "dataset")

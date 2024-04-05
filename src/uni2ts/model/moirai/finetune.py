@@ -17,6 +17,12 @@ from collections.abc import Callable, Sequence
 from typing import Any, Optional
 
 import lightning as L
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.callbacks import (
+    ModelCheckpoint,
+    EarlyStopping,
+    LearningRateMonitor,
+)
 import numpy as np
 import torch
 from einops import rearrange
@@ -58,6 +64,15 @@ from uni2ts.transform import (
 )
 
 from .module import MoiraiModule
+from huggingface_hub import hf_hub_download
+from uni2ts.distribution import (
+    MixtureOutput,
+    StudentTOutput,
+    NormalFixedScaleOutput,
+    NegativeBinomialOutput,
+    LogNormalOutput,
+)
+from config import paths
 
 
 class MoiraiFinetune(L.LightningModule):
@@ -491,3 +506,89 @@ class MoiraiFinetune(L.LightningModule):
 
 
 class MoiraiLinearProbe(MoiraiFinetune): ...
+
+
+class FinetuneTrainer(L.Trainer):
+    save_dir = paths.OUTPUT_DIR
+
+    def __init__(self):
+        super().__init__(
+            accelerator="auto",
+            strategy="auto",
+            devices="auto",
+            num_nodes=1,
+            precision=32,
+            logger=TensorBoardLogger(save_dir=self.save_dir, name="logs"),
+            callbacks=[
+                LearningRateMonitor(logging_interval="epoch"),
+                ModelCheckpoint(
+                    dirpath=f"{self.save_dir}/checkpoints",
+                    monitor="val_loss",
+                    save_weights_only=True,
+                    mode="min",
+                    save_top_k=1,
+                    every_n_epochs=1,
+                ),
+                EarlyStopping(
+                    monitor="val_loss",
+                    min_delta=0.0,
+                    patience=3,
+                    mode="min",
+                    strict=False,
+                ),
+            ],
+            max_epochs=100,
+            enable_progress_bar=True,
+            accumulate_grad_batches=1,
+            gradient_clip_val=1.0,
+            gradient_clip_algorithm="norm",
+        )
+
+
+class MoiraiFinetuneSmall(MoiraiFinetune):
+    def __init__(
+        self,
+    ):
+
+        module_kwargs = {
+            "distr_output": MixtureOutput(
+                components=[
+                    StudentTOutput(),
+                    NormalFixedScaleOutput(),
+                    NegativeBinomialOutput(),
+                    LogNormalOutput(),
+                ]
+            ),
+            "d_model": 384,
+            "num_layers": 6,
+            "patch_sizes": tuple([8, 16, 32, 64, 128]),
+            "max_seq_len": 512,
+            "attn_dropout_p": 0.0,
+            "dropout_p": 0.0,
+            "scaling": True,
+        }
+        args = {
+            "min_patches": 2,
+            "min_mask_ratio": 0.15,
+            "max_mask_ratio": 0.5,
+            "max_dim": 128,
+            "loss_func": PackedNLLLoss(),
+            "lr": 1e-3,
+            "weight_decay": 1e-1,
+            "beta1": 0.9,
+            "beta2": 0.98,
+            "num_training_steps": 10000,
+            "num_warmup_steps": 0,
+            # "checkpoint_path": hf_hub_download(
+            #     repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
+            # ),
+        }
+        super().__init__(module_kwargs=module_kwargs, **args)
+
+    @staticmethod
+    def get_model():
+        return MoiraiFinetuneSmall.load_from_checkpoint(
+            checkpoint_path=hf_hub_download(
+                repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
+            ),
+        )
