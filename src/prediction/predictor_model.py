@@ -94,6 +94,7 @@ class MoiraiPredictor(Predictor):
         file_name = [i for i in os.listdir(paths.TRAIN_DIR) if i.endswith(".csv")][0]
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
         dataset = file_name.removesuffix(".csv")
+        freq = self.map_frequency(self.data_schema.frequency)
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
             offset=None,
@@ -101,6 +102,7 @@ class MoiraiPredictor(Predictor):
             id_col=self.data_schema.id_col,
             time_col=self.data_schema.time_col,
             target_col=self.data_schema.target,
+            freq=freq,
         )
         self.dataset = dataset
 

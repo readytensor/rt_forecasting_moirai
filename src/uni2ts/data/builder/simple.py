@@ -38,6 +38,7 @@ def _from_long_dataframe(
     df: pd.DataFrame,
     target_col: str,
     id_col: str,
+    freq: str,
 ) -> tuple[GenFunc, Features]:
 
     items = df[id_col].unique()
@@ -48,7 +49,7 @@ def _from_long_dataframe(
             yield {
                 "target": item_df[target_col].to_numpy(),
                 "start": item_df.index[0],
-                "freq": pd.infer_freq(item_df.index),
+                "freq": freq,
                 id_col: item_id,
             }
 
@@ -127,6 +128,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
         time_col: str,
         id_col: str,
         target_col: str,
+        freq: str,
         offset: int = None,
         date_offset: pd.Timestamp = None,
     ):
@@ -144,7 +146,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
             df = df[df.index <= date_offset]
 
         example_gen_func, features = _from_long_dataframe(
-            df, id_col=id_col, target_col=target_col
+            df, id_col=id_col, target_col=target_col, freq=freq
         )
 
         hf_dataset = datasets.Dataset.from_generator(
