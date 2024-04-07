@@ -65,6 +65,9 @@ RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && chmod -R 777 /opt
 
 # Copy source code into image and set permissions
+WORKDIR /opt
+RUN echo "model=small" > .env
+
 COPY src /opt/src
 
 # Set working directory
