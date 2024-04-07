@@ -151,11 +151,6 @@ class SimpleDatasetBuilder(DatasetBuilder):
             example_gen_func, features=features
         )
 
-        print(hf_dataset)
-
-        for i in hf_dataset:
-            print(i)
-
         hf_dataset.info.dataset_name = self.dataset
         hf_dataset.save_to_disk(self.storage_path / self.dataset)
 
@@ -186,20 +181,18 @@ class SimpleEvalDatasetBuilder(DatasetBuilder):
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
 
-    def build_dataset(self, file: Path, dataset_type: str):
-        df = pd.read_csv(file, index_col=0, parse_dates=True)
+    def build_dataset(
+        self,
+        file: Path,
+        time_col: str,
+        id_col: str,
+        target_col: str,
+    ):
+        df = pd.read_csv(file, index_col=time_col, parse_dates=True)
 
-        if dataset_type == "long":
-            example_gen_func, features = _from_long_dataframe(df)
-        elif dataset_type == "wide":
-            example_gen_func, features = _from_wide_dataframe(df)
-        elif dataset_type == "wide_multivariate":
-            example_gen_func, features = _from_wide_dataframe_multivariate(df)
-        else:
-            raise ValueError(
-                f"Unrecognized dataset_type, {dataset_type}."
-                " Valid options are 'long', 'wide', and 'wide_multivariate'."
-            )
+        example_gen_func, features = _from_long_dataframe(
+            df, target_col=target_col, id_col=id_col
+        )
 
         hf_dataset = datasets.Dataset.from_generator(
             example_gen_func, features=features

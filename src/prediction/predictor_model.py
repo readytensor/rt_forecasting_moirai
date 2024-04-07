@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
+import joblib
 from gluonts.dataset.common import Dataset
 from gluonts.dataset.loader import InferenceDataLoader
 from gluonts.model.forecast import Forecast
@@ -18,6 +19,19 @@ from gluonts.transform.split import TFTInstanceSplitter
 from uni2ts.model.moirai.forecast import MoiraiForecast
 from schema.data_schema import ForecastingSchema
 from prediction.download_model import download_pretrained_model_if_not_exists
+from uni2ts.data.builder.simple import (
+    SimpleDatasetBuilder,
+    generate_eval_builders,
+)
+from uni2ts.data.builder import ConcatDatasetBuilder
+from uni2ts.model.moirai.finetune import (
+    TrainDataLoader,
+    ValidationDataLoader,
+    MoiraiFinetuneSmall,
+    FinetuneTrainer,
+    MoiraiFinetune,
+)
+from config import paths
 
 count_patches = {}
 
@@ -76,72 +90,19 @@ class MoiraiPredictor(Predictor):
     def network(self) -> nn.Module:
         return self.prediction_net
 
-    def _get_patch_size_val_loss_map(self, loader, prediction_net):
-        patch_val_loss_map = {}
-        for patch_size in prediction_net.module.patch_sizes:
-            val_losses = []
-            for batch in loader:
-                past_target = batch["past_target"].to(self.device)
-                past_observed_target = batch["past_observed_target"].to(self.device)
-                past_is_pad = batch["past_is_pad"].to(self.device)
-                val_losses.append(
-                    prediction_net._val_loss(
-                        patch_size=patch_size,
-                        target=past_target[..., : prediction_net.past_length, :],
-                        observed_target=past_observed_target[
-                            ..., : prediction_net.past_length, :
-                        ],
-                        is_pad=past_is_pad[..., : prediction_net.past_length],
-                        feat_dynamic_real=None,
-                        observed_feat_dynamic_real=None,
-                        past_feat_dynamic_real=None,
-                        past_observed_feat_dynamic_real=None,
-                    )
-                )
-            val_losses = torch.cat(val_losses, dim=0)
-            patch_val_loss_map[patch_size] = val_losses.mean(0).cpu().numpy().item()
-        return patch_val_loss_map
-
-    def _get_best_patch_size(
-        self,
-        dataset,
-        batch_size,
-        context_length,
-        prediction_length,
-    ):
-
-        with self.prediction_net.custom_config(
-            context_length=context_length,
-            patch_size="auto",
-            prediction_length=prediction_length,
-        ) as prediction_net:
-            instance_splitter = TFTInstanceSplitter(
-                instance_sampler=TestSplitSampler(),
-                past_length=prediction_net.past_length,
-                future_length=prediction_length,
-                observed_value_field="observed_target",
-                time_series_fields=[],
-                past_time_series_fields=[],
-            )
-            input_transform = prediction_net.get_default_transform() + instance_splitter
-            inference_data_loader = InferenceDataLoader(
-                dataset,
-                transform=input_transform
-                + SelectFields(
-                    prediction_net.prediction_input_names + self.required_fields,
-                    allow_missing=True,
-                ),
-                batch_size=batch_size,
-                stack_fn=lambda data: batchify(data, self.device),
-            )
-
-            prediction_net.eval()
-            with torch.no_grad():
-                patch_val_loss_map = self._get_patch_size_val_loss_map(
-                    inference_data_loader, prediction_net=prediction_net
-                )
-                print("patch_val_loss_map:", patch_val_loss_map)
-                return min(patch_val_loss_map, key=patch_val_loss_map.get)
+    def prepare_data(self) -> None:
+        file_name = [i for i in os.listdir(paths.TRAIN_DIR) if i.endswith(".csv")][0]
+        file_path = os.path.join(paths.TRAIN_DIR, file_name)
+        dataset = file_name.removesuffix(".csv")
+        SimpleDatasetBuilder(dataset=dataset).build_dataset(
+            file=Path(file_path),
+            offset=None,
+            date_offset=None,
+            id_col=self.data_schema.id_col,
+            time_col=self.data_schema.time_col,
+            target_col=self.data_schema.target,
+        )
+        self.dataset = dataset
 
     def predict(
         self,
@@ -225,10 +186,55 @@ class MoiraiPredictor(Predictor):
         else:
             return 1
 
+    def fit(self) -> MoiraiFinetune:
+        model = MoiraiFinetuneSmall.get_model()
 
-def train_predictor_model() -> None:
+        trainer = FinetuneTrainer()
 
-    return None
+        dataset = SimpleDatasetBuilder(dataset=self.dataset).load_dataset(
+            model.create_train_transform()
+        )
+        # val_dataset = ConcatDatasetBuilder(
+        #     *generate_eval_builders(
+        #         dataset="banks_split_eval",
+        #         offset=2000,
+        #         eval_length=200,
+        #         prediction_lengths=[96, 192, 336, 720],
+        #         context_lengths=[1000, 2000, 3000, 4000, 5000],
+        #         patch_sizes=[32, 64],
+        #     )
+        # ).load_dataset(model.create_val_transform)
+        train_dataloader = TrainDataLoader(dataset=dataset, trainer=trainer)
+        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
+        self.model = model
+        return model
+
+    def save(self, save_dir_path: str) -> None:
+        self.model.save_pretrained(save_dir_path)
+        del self.model
+        joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
+
+    @staticmethod
+    def load(self, load_dir_path: str) -> "MoiraiPredictor":
+        model = MoiraiFinetuneSmall.from_pretrained(load_dir_path)
+        predictor = joblib.load(os.path.join(load_dir_path, "predictor.joblib"))
+        predictor.model = model
+        return predictor
+
+
+def train_predictor_model(
+    model_name: str, data_schema: ForecastingSchema, **kwargs
+) -> MoiraiPredictor:
+
+    model = load_predictor_model(
+        model_name=model_name,
+        data_schema=data_schema,
+        **kwargs,
+    )
+    model.prepare_data()
+    model.fit()
+    return model
 
 
 def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
@@ -268,6 +274,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
+    model.save(model_dir)
     os.makedirs(model_dir, exist_ok=True)
     model_path = os.path.join(model_dir, "model.txt")
     with open(model_path, "w") as f:
@@ -275,7 +282,7 @@ def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
 
 
 def load_predictor_model(
-    model_name: str, data_schema: ForecastingSchema, prediction_length: int, **kwargs
+    model_name: str, data_schema: ForecastingSchema, **kwargs
 ) -> MoiraiPredictor:
 
     pretrained_model_root_path = os.path.join(
@@ -291,7 +298,7 @@ def load_predictor_model(
     model = MoiraiPredictor(
         prediction_net=CustomizableMoiraiForecast.load_from_checkpoint(
             checkpoint_path=ckpt_path,
-            prediction_length=prediction_length,
+            prediction_length=data_schema.forecast_length,
             target_dim=1,
             feat_dynamic_real_dim=0,
             past_feat_dynamic_real_dim=0,
@@ -299,7 +306,7 @@ def load_predictor_model(
             **kwargs,
         ),
         data_schema=data_schema,
-        prediction_length=prediction_length,
+        prediction_length=data_schema.forecast_length,
         **kwargs,
     )
 

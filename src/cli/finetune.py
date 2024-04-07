@@ -52,7 +52,7 @@ class DataModule(L.LightningDataModule):
             if self.trainer.world_size > 1
             else None
         )
-        train_dataloader = instantiate(self.cfg.train_dataloader, _partial_=True)(
+        train_dataloader = TrainDataLoader()(
             dataset=self.train_dataset,
             shuffle=self.cfg.train_dataloader.shuffle if sampler is None else None,
             sampler=sampler,
@@ -130,15 +130,34 @@ from uni2ts.model.moirai.finetune import MoiraiFinetuneSmall, FinetuneTrainer
 
 
 if __name__ == "__main__":
-    from uni2ts.data.builder.simple import SimpleDatasetBuilder, generate_eval_builders
+    from uni2ts.data.builder.simple import (
+        SimpleDatasetBuilder,
+        generate_eval_builders,
+        SimpleEvalDatasetBuilder,
+    )
     from uni2ts.data.builder import ConcatDatasetBuilder
+    from uni2ts.model.moirai.finetune import TrainDataLoader, ValidationDataLoader
 
-    # main()
     model = MoiraiFinetuneSmall.get_model()
     print(model)
 
     trainer = FinetuneTrainer()
 
-    dataset = SimpleDatasetBuilder(dataset="banksgg").load_dataset(
+    dataset = SimpleDatasetBuilder(dataset="banks_split").load_dataset(
         model.create_train_transform()
+    )
+    val_dataset = ConcatDatasetBuilder(
+        *generate_eval_builders(
+            dataset="banks_split_eval",
+            offset=11520,
+            eval_length=288,
+            prediction_lengths=[96, 192, 336, 720],
+            context_lengths=[1000, 2000, 3000, 4000, 5000],
+            patch_sizes=[32, 64],
+        )
+    ).load_dataset(model.create_val_transform)
+    train_dataloader = TrainDataLoader(dataset=dataset, trainer=trainer)
+    val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+    trainer.fit(
+        model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
     )

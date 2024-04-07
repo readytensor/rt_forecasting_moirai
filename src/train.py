@@ -44,7 +44,11 @@ def run_training(
 
             # use default hyperparameters to train model
             logger.info(f"Training model ({model_config['model_name']})...")
-            model = train_predictor_model()
+            model = train_predictor_model(
+                model_name=model_config["model_name"],
+                data_schema=data_schema,
+                **default_hyperparameters,
+            )
 
             save_predictor_model(model=model, model_dir=paths.PREDICTOR_DIR_PATH)
 

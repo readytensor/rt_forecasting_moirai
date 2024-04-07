@@ -72,6 +72,9 @@ from uni2ts.distribution import (
     NegativeBinomialOutput,
     LogNormalOutput,
 )
+from uni2ts.data.loader import DataLoader, PackCollate
+from torch.utils.data import Dataset, DistributedSampler
+
 from config import paths
 
 
@@ -577,7 +580,8 @@ class MoiraiFinetuneSmall(MoiraiFinetune):
             "weight_decay": 1e-1,
             "beta1": 0.9,
             "beta2": 0.98,
-            "num_training_steps": 10000,
+            # "num_training_steps": 10000,
+            "num_training_steps": 1,
             "num_warmup_steps": 0,
             # "checkpoint_path": hf_hub_download(
             #     repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
@@ -591,4 +595,80 @@ class MoiraiFinetuneSmall(MoiraiFinetune):
             checkpoint_path=hf_hub_download(
                 repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
             ),
+        )
+
+
+class ValidationDataLoader(DataLoader):
+
+    def __init__(self, dataset: Dataset, trainer: L.LightningModule):
+        self.dataset = dataset
+        sampler = None
+        if trainer.world_size > 1:
+            sampler = DistributedSampler(
+                self.dataset,
+                num_replicas=None,
+                rank=None,
+                shuffle=True,
+                seed=0,  # Assuming your DistributedSampler supports a 'seed' argument
+                drop_last=False,
+            )
+
+        super().__init__(
+            dataset=dataset,
+            batch_size=32,
+            batch_size_factor=2.0,
+            num_batches_per_epoch=1,
+            cycle=True,
+            shuffle=True,
+            num_workers=11,
+            collate_fn=PackCollate(
+                max_length=512,
+                pad_func_map=MoiraiFinetune.pad_func_map,
+                seq_fields=MoiraiFinetune.seq_fields,
+            ),
+            pin_memory=True,
+            drop_last=False,
+            fill_last=False,
+            worker_init_fn=None,
+            prefetch_factor=2,
+            persistent_workers=True,
+            sampler=sampler,
+        )
+
+
+class TrainDataLoader(DataLoader):
+
+    def __init__(self, dataset: Dataset, trainer: L.LightningModule):
+        self.dataset = dataset
+        sampler = None
+        if trainer.world_size > 1:
+            sampler = DistributedSampler(
+                self.dataset,
+                num_replicas=trainer.world_size,
+                rank=trainer.global_rank,
+                shuffle=True,
+                seed=0,  # Assuming your DistributedSampler supports a 'seed' argument
+                drop_last=False,
+            )
+
+        super().__init__(
+            dataset=dataset,
+            batch_size=32,
+            batch_size_factor=2.0,
+            num_batches_per_epoch=100,
+            cycle=True,
+            shuffle=True,
+            num_workers=11,
+            collate_fn=PackCollate(
+                max_length=512,
+                pad_func_map=MoiraiFinetune.pad_func_map,
+                seq_fields=MoiraiFinetune.seq_fields,
+            ),
+            pin_memory=True,
+            drop_last=False,
+            fill_last=False,
+            worker_init_fn=None,
+            prefetch_factor=2,
+            persistent_workers=True,
+            sampler=sampler,
         )
