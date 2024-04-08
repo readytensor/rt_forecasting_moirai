@@ -1,4 +1,5 @@
 import os
+import json
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -237,6 +238,7 @@ class MoiraiPredictor(Predictor):
 
     def save(self, save_dir_path: str) -> None:
         del self.prediction_net
+        self.serialize
         joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
     @staticmethod
@@ -245,6 +247,68 @@ class MoiraiPredictor(Predictor):
         predictor = joblib.load(os.path.join(load_dir_path, "predictor.joblib"))
         predictor.model = model
         return predictor
+
+    def serialize(self, path: Path) -> None:
+        super().serialize(path)
+
+        # Save ckpt
+        with open(path / "model.ckpt", "wb") as fp:
+            torch.save(
+                {
+                    "state_dict": self.prediction_net.state_dict(),
+                    "hyper_parameters": {
+                        "module_kwargs": self.prediction_net.hparams.module_kwargs
+                    },
+                },
+                fp,
+            )
+
+        # Save Predictor params
+        with open(path / "predictor_config.json", "w") as fp:
+            json.dump(
+                {
+                    "batch_size": self.batch_size,
+                    "prediction_length": self.prediction_length,
+                    "lead_time": self.lead_time,
+                },
+                fp,
+                indent=4,
+            )
+
+    @classmethod
+    def deserialize(
+        cls,
+        path: Path,
+        device: Optional[Union[str, torch.device]] = "cuda",
+        prediction_length=64,
+        context_length=1024,
+        patch_size="auto",
+        num_parallel_samples=20,
+        batch_size=32,
+    ) -> "MoiraiPredictor":
+        with open(path / "predictor_config.json", "r") as fp:
+            predictor_config: dict = json.load(fp)
+
+        predictor_config.update(
+            prediction_length=prediction_length,
+            batch_size=batch_size,
+        )
+
+        with open(path / "model.ckpt", "rb") as fp:
+            ckpt = torch.load(fp, map_location=device)
+        model = CustomizableMoiraiForecast(
+            module_kwargs=ckpt["hyper_parameters"]["module_kwargs"],
+            prediction_length=prediction_length,
+            context_length=context_length,
+            patch_size=patch_size,
+            num_samples=num_parallel_samples,
+            target_dim=1,
+            feat_dynamic_real_dim=0,
+            past_feat_dynamic_real_dim=0,
+        )
+        model.load_state_dict(ckpt["state_dict"])
+
+        return MoiraiPredictor(prediction_net=model, **predictor_config)
 
 
 def train_predictor_model(
@@ -259,22 +323,6 @@ def train_predictor_model(
     model.prepare_data()
     model.fit()
 
-    # checkpoint_path = os.path.join(paths.PREDICTOR_DIR_PATH, "model.ckpt")
-    # model = MoiraiPredictor(
-    #     prediction_net=CustomizableMoiraiForecast.load_from_checkpoint(
-    #         checkpoint_path=Path(checkpoint_path),
-    #         prediction_length=data_schema.forecast_length,
-    #         target_dim=1,
-    #         feat_dynamic_real_dim=0,
-    #         past_feat_dynamic_real_dim=0,
-    #         map_location="cuda:0" if torch.cuda.is_available() else "cpu",
-    #         **kwargs,
-    #     ),
-    #     data_schema=data_schema,
-    #     prediction_length=data_schema.forecast_length,
-    #     **kwargs,
-    # )
-    # return model
     return model
 
 
@@ -315,7 +363,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
-    model.save(model_dir)
+    model.serialize(model_dir)
     with open(f"{model_dir}/dummy.txt", "w") as f:
         f.write("dummy")
 
@@ -353,21 +401,22 @@ def load_pretrained_model(
 
 
 def load_predictor_model(save_dir_path: str):
-    model_path = os.path.join(save_dir_path, "model.ckpt")
-    predictor_path = os.path.join(save_dir_path, "predictor.joblib")
+    return MoiraiPredictor.deserialize(save_dir_path)
+    # model_path = os.path.join(save_dir_path, "model.ckpt")
+    # predictor_path = os.path.join(save_dir_path, "predictor.joblib")
 
-    predictor = joblib.load(predictor_path)
+    # predictor = joblib.load(predictor_path)
 
-    prediction_net = (
-        CustomizableMoiraiForecast.load_from_checkpoint(
-            checkpoint_path=model_path,
-            prediction_length=predictor.data_schema.forecast_length,
-            target_dim=1,
-            feat_dynamic_real_dim=0,
-            past_feat_dynamic_real_dim=0,
-            map_location="cuda:0" if torch.cuda.is_available() else "cpu",
-            **predictor.kwargs,
-        ),
-    )
-    predictor.prediction_net = prediction_net
-    return predictor
+    # prediction_net = (
+    #     CustomizableMoiraiForecast.load_from_checkpoint(
+    #         checkpoint_path=model_path,
+    #         prediction_length=predictor.data_schema.forecast_length,
+    #         target_dim=1,
+    #         feat_dynamic_real_dim=0,
+    #         past_feat_dynamic_real_dim=0,
+    #         map_location="cuda:0" if torch.cuda.is_available() else "cpu",
+    #         **predictor.kwargs,
+    #     ),
+    # )
+    # predictor.prediction_net = prediction_net
+    # return predictor
