@@ -530,8 +530,7 @@ class FinetuneTrainer(L.Trainer):
                     save_weights_only=False,
                     mode="min",
                     save_top_k=-1,
-                    filename="model.ckpt",
-                    save_last=True,
+                    filename="model",
                 ),
                 EarlyStopping(
                     monitor="PackedNLLLoss",
