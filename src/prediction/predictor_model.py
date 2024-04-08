@@ -275,6 +275,7 @@ def train_predictor_model(
     #     **kwargs,
     # )
     # return model
+    return model
 
 
 def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
