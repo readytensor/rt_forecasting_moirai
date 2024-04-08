@@ -257,10 +257,19 @@ def train_predictor_model(
         **kwargs,
     )
     model.prepare_data()
-    prediction_net = model.fit()
+    model.fit()
 
+    checkpoint_path = os.path.join(paths.PREDICTOR_DIR_PATH, "model.ckpt")
     model = MoiraiPredictor(
-        prediction_net=prediction_net,
+        prediction_net=CustomizableMoiraiForecast.load_from_checkpoint(
+            checkpoint_path=Path(checkpoint_path),
+            prediction_length=data_schema.forecast_length,
+            target_dim=1,
+            feat_dynamic_real_dim=0,
+            past_feat_dynamic_real_dim=0,
+            map_location="cuda:0" if torch.cuda.is_available() else "cpu",
+            **kwargs,
+        ),
         data_schema=data_schema,
         prediction_length=data_schema.forecast_length,
         **kwargs,
