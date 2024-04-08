@@ -313,7 +313,8 @@ class MoiraiPredictor(Predictor):
         return MoiraiPredictor(
             prediction_net=model,
             data_schema=data_schema,
-            prediction_length=data_schema.forecast_length**predictor_config,
+            prediction_length=data_schema.forecast_length,
+            **predictor_config,
         )
 
 
