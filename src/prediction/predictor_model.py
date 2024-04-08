@@ -313,7 +313,6 @@ class MoiraiPredictor(Predictor):
         return MoiraiPredictor(
             prediction_net=model,
             data_schema=data_schema,
-            prediction_length=data_schema.forecast_length,
             **predictor_config,
         )
 
@@ -365,7 +364,6 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
         all_forecasts.append(median_forecast)
     all_forecasts = np.array(all_forecasts)
-    print("Number of selected patch sizes:", count_patches)
     return {k: v for k, v in zip(all_ids, all_forecasts)}
 
 
@@ -409,21 +407,3 @@ def load_pretrained_model(
 
 def load_predictor_model(save_dir_path: str):
     return MoiraiPredictor.deserialize(Path(save_dir_path))
-    # model_path = os.path.join(save_dir_path, "model.ckpt")
-    # predictor_path = os.path.join(save_dir_path, "predictor.joblib")
-
-    # predictor = joblib.load(predictor_path)
-
-    # prediction_net = (
-    #     CustomizableMoiraiForecast.load_from_checkpoint(
-    #         checkpoint_path=model_path,
-    #         prediction_length=predictor.data_schema.forecast_length,
-    #         target_dim=1,
-    #         feat_dynamic_real_dim=0,
-    #         past_feat_dynamic_real_dim=0,
-    #         map_location="cuda:0" if torch.cuda.is_available() else "cpu",
-    #         **predictor.kwargs,
-    #     ),
-    # )
-    # predictor.prediction_net = prediction_net
-    # return predictor
