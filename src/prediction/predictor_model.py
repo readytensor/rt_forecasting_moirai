@@ -94,12 +94,8 @@ class MoiraiPredictor(Predictor):
     def prepare_data(self) -> None:
         file_name = [i for i in os.listdir(paths.TRAIN_DIR) if i.endswith(".csv")][0]
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
-        # data = pd.read_csv(file_path)
-        # grouped = data.groupby(self.data_schema.id_col)
-        # series_length = [len(series) for _, series in grouped][0]
         dataset = file_name.removesuffix(".csv")
         freq = self.map_frequency(self.data_schema.frequency)
-        # offset = int(series_length * 0.8)
         offset = None
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
@@ -261,7 +257,14 @@ def train_predictor_model(
         **kwargs,
     )
     model.prepare_data()
-    model.fit()
+    prediction_net = model.fit()
+
+    model = MoiraiPredictor(
+        prediction_net=prediction_net,
+        data_schema=data_schema,
+        prediction_length=data_schema.forecast_length,
+        **kwargs,
+    )
     return model
 
 
