@@ -189,11 +189,12 @@ class SimpleEvalDatasetBuilder(DatasetBuilder):
         time_col: str,
         id_col: str,
         target_col: str,
+        freq: str,
     ):
         df = pd.read_csv(file, index_col=time_col, parse_dates=True)
 
         example_gen_func, features = _from_long_dataframe(
-            df, target_col=target_col, id_col=id_col
+            df, target_col=target_col, id_col=id_col, freq=freq
         )
 
         hf_dataset = datasets.Dataset.from_generator(

@@ -21,6 +21,7 @@ from schema.data_schema import ForecastingSchema
 from prediction.download_model import download_pretrained_model_if_not_exists
 from uni2ts.data.builder.simple import (
     SimpleDatasetBuilder,
+    SimpleEvalDatasetBuilder,
     generate_eval_builders,
 )
 from uni2ts.data.builder import ConcatDatasetBuilder
@@ -95,15 +96,33 @@ class MoiraiPredictor(Predictor):
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
         dataset = file_name.removesuffix(".csv")
         freq = self.map_frequency(self.data_schema.frequency)
+        offset = 20
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
-            offset=None,
+            offset=offset,
             date_offset=None,
             id_col=self.data_schema.id_col,
             time_col=self.data_schema.time_col,
             target_col=self.data_schema.target,
             freq=freq,
         )
+        if offset is not None:
+
+            SimpleEvalDatasetBuilder(
+                f"{dataset}_eval",
+                offset=offset,
+                windows=None,
+                distance=None,
+                prediction_length=self.data_schema.forecast_length,
+                context_length=None,
+                patch_size=None,
+            ).build_dataset(
+                file=Path(file_path),
+                id_col=self.data_schema.id_col,
+                time_col=self.data_schema.time_col,
+                target_col=self.data_schema.target,
+                freq=freq,
+            )
         self.dataset = dataset
 
     def predict(
@@ -196,6 +215,10 @@ class MoiraiPredictor(Predictor):
         dataset = SimpleDatasetBuilder(dataset=self.dataset).load_dataset(
             model.create_train_transform()
         )
+
+        val_dataset = SimpleDatasetBuilder(dataset=f"{self.dataset}_eval").load_dataset(
+            model.create_train_transform()
+        )
         # val_dataset = ConcatDatasetBuilder(
         #     *generate_eval_builders(
         #         dataset="banks_split_eval",
@@ -207,7 +230,7 @@ class MoiraiPredictor(Predictor):
         #     )
         # ).load_dataset(model.create_val_transform)
         train_dataloader = TrainDataLoader(dataset=dataset, trainer=trainer)
-        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
         trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
         self.model = model
         return model
