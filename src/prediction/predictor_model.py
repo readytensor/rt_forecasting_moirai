@@ -363,7 +363,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
-    model.serialize(model_dir)
+    model.serialize(Path(model_dir))
     with open(f"{model_dir}/dummy.txt", "w") as f:
         f.write("dummy")
 
@@ -401,7 +401,7 @@ def load_pretrained_model(
 
 
 def load_predictor_model(save_dir_path: str):
-    return MoiraiPredictor.deserialize(save_dir_path)
+    return MoiraiPredictor.deserialize(Path(save_dir_path))
     # model_path = os.path.join(save_dir_path, "model.ckpt")
     # predictor_path = os.path.join(save_dir_path, "predictor.joblib")
 
