@@ -512,7 +512,7 @@ class MoiraiLinearProbe(MoiraiFinetune): ...
 
 
 class FinetuneTrainer(L.Trainer):
-    save_dir = paths.OUTPUT_DIR
+    save_dir = paths.PREDICTOR_DIR_PATH
 
     def __init__(self):
         super().__init__(
@@ -526,7 +526,7 @@ class FinetuneTrainer(L.Trainer):
                 LearningRateMonitor(logging_interval="epoch"),
                 ModelCheckpoint(
                     dirpath=f"{self.save_dir}/checkpoints",
-                    monitor="val_loss",
+                    monitor="train_loss",
                     save_weights_only=True,
                     mode="min",
                     save_top_k=1,

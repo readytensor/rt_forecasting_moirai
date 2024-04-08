@@ -50,7 +50,7 @@ def run_training(
                 **default_hyperparameters,
             )
 
-            save_predictor_model(model=model, model_dir=paths.PREDICTOR_DIR_PATH)
+            # save_predictor_model(model=model, model_dir=paths.PREDICTOR_DIR_PATH)
 
     except Exception as exc:
         err_msg = "Error occurred during training."
