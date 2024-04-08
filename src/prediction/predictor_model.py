@@ -315,7 +315,9 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
-    model.save(model_dir)
+    # model.save(model_dir)
+    with open(f"{model_dir}/dummy.txt", "w") as f:
+        f.write("dummy")
 
 
 def load_pretrained_model(
