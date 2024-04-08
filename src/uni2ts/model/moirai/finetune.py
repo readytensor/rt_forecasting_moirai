@@ -525,12 +525,13 @@ class FinetuneTrainer(L.Trainer):
             callbacks=[
                 LearningRateMonitor(logging_interval="epoch"),
                 ModelCheckpoint(
-                    dirpath=f"{self.save_dir}/checkpoints",
+                    dirpath=self.save_dir,
                     monitor="PackedNLLLoss",
-                    save_weights_only=True,
+                    save_weights_only=False,
                     mode="min",
-                    save_top_k=1,
-                    every_n_epochs=1,
+                    save_top_k=-1,
+                    filename="model.ckpt",
+                    save_last=True,
                 ),
                 EarlyStopping(
                     monitor="PackedNLLLoss",

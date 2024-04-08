@@ -240,8 +240,7 @@ class MoiraiPredictor(Predictor):
         return model
 
     def save(self, save_dir_path: str) -> None:
-        self.model.save_pretrained(save_dir_path)
-        del self.model
+        del self.prediction_net
         joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
     @staticmethod
@@ -256,7 +255,7 @@ def train_predictor_model(
     model_name: str, data_schema: ForecastingSchema, **kwargs
 ) -> MoiraiPredictor:
 
-    model = load_predictor_model(
+    model = load_pretrained_model(
         model_name=model_name,
         data_schema=data_schema,
         **kwargs,
@@ -304,13 +303,9 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
     model.save(model_dir)
-    os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "model.txt")
-    with open(model_path, "w") as f:
-        f.write("dummy model")
 
 
-def load_predictor_model(
+def load_pretrained_model(
     model_name: str, data_schema: ForecastingSchema, **kwargs
 ) -> MoiraiPredictor:
 
@@ -340,3 +335,24 @@ def load_predictor_model(
     )
 
     return model
+
+
+def load_predictor_model(save_dir_path: str):
+    model_path = os.path.join(save_dir_path, "model.ckpt")
+    predictor_path = os.path.join(save_dir_path, "predictor.joblib")
+
+    predictor = joblib.load(predictor_path)
+
+    prediction_net = (
+        CustomizableMoiraiForecast.load_from_checkpoint(
+            checkpoint_path=model_path,
+            prediction_length=predictor.data_schema.forecast_length,
+            target_dim=1,
+            feat_dynamic_real_dim=0,
+            past_feat_dynamic_real_dim=0,
+            map_location="cuda:0" if torch.cuda.is_available() else "cpu",
+            **predictor.kwargs,
+        ),
+    )
+    predictor.prediction_net = prediction_net
+    return predictor
