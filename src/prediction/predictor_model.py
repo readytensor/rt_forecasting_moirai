@@ -34,6 +34,7 @@ from uni2ts.model.moirai.finetune import (
     MoiraiFinetune,
 )
 from config import paths
+from schema.data_schema import load_json_data_schema
 
 count_patches = {}
 
@@ -307,8 +308,13 @@ class MoiraiPredictor(Predictor):
             past_feat_dynamic_real_dim=0,
         )
         model.load_state_dict(ckpt["state_dict"])
+        data_schema = load_json_data_schema(paths.INPUT_SCHEMA_DIR)
 
-        return MoiraiPredictor(prediction_net=model, **predictor_config)
+        return MoiraiPredictor(
+            prediction_net=model,
+            data_schema=data_schema,
+            prediction_length=data_schema.forecast_length**predictor_config,
+        )
 
 
 def train_predictor_model(
