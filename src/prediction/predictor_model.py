@@ -233,7 +233,9 @@ class MoiraiPredictor(Predictor):
         #         patch_sizes=[32, 64],
         #     )
         # ).load_dataset(model.create_val_transform)
-        train_dataloader = TrainDataLoader(dataset=dataset, trainer=trainer)
+        train_dataloader = TrainDataLoader(
+            dataset=dataset, trainer=trainer, batch_size=self.batch_size
+        )
         # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
         trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
         self.model = model

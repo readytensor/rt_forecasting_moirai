@@ -597,7 +597,9 @@ class ValidationDataLoader(DataLoader):
 
 class TrainDataLoader(DataLoader):
 
-    def __init__(self, dataset: Dataset, trainer: L.LightningModule):
+    def __init__(
+        self, dataset: Dataset, trainer: L.LightningModule, batch_size: int = 32
+    ):
         self.dataset = dataset
         sampler = None
         if trainer.world_size > 1:
@@ -612,7 +614,7 @@ class TrainDataLoader(DataLoader):
 
         super().__init__(
             dataset=dataset,
-            batch_size=32,
+            batch_size=batch_size,
             batch_size_factor=2.0,
             num_batches_per_epoch=100,
             cycle=True,
