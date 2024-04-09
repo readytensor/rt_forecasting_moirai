@@ -29,12 +29,10 @@ from uni2ts.data.builder import ConcatDatasetBuilder
 from uni2ts.model.moirai.finetune import (
     TrainDataLoader,
     ValidationDataLoader,
-    # MoiraiFinetuneSmall,
     FinetuneTrainer,
     MoiraiFinetune,
 )
 from config import paths
-from schema.data_schema import load_json_data_schema
 
 count_patches = {}
 
@@ -280,20 +278,10 @@ class MoiraiPredictor(Predictor):
     def deserialize(
         cls,
         path: Path,
-        # prediction_length=64,
-        # context_length=1024,
-        # patch_size="auto",
-        # num_parallel_samples=20,
-        # batch_size=32,
     ) -> "MoiraiPredictor":
         device = "cuda" if torch.cuda.is_available() else "cpu"
         with open(path / "predictor_config.json", "r") as fp:
             predictor_config: dict = json.load(fp)
-
-        # predictor_config.update(
-        #     prediction_length=prediction_length,
-        #     batch_size=batch_size,
-        # )
 
         with open(path / "model.ckpt", "rb") as fp:
             ckpt = torch.load(fp, map_location=device)
@@ -308,9 +296,6 @@ class MoiraiPredictor(Predictor):
 
         model = CustomizableMoiraiForecast(
             module_kwargs=ckpt["hyper_parameters"]["module_kwargs"],
-            # context_length=context_length,
-            # patch_size=patch_size,
-            # num_samples=num_parallel_samples,
             target_dim=1,
             feat_dynamic_real_dim=0,
             past_feat_dynamic_real_dim=0,
