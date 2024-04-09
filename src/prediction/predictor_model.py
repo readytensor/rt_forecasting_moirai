@@ -29,7 +29,7 @@ from uni2ts.data.builder import ConcatDatasetBuilder
 from uni2ts.model.moirai.finetune import (
     TrainDataLoader,
     ValidationDataLoader,
-    MoiraiFinetuneSmall,
+    # MoiraiFinetuneSmall,
     FinetuneTrainer,
     MoiraiFinetune,
 )
@@ -68,6 +68,7 @@ class CustomizableMoiraiForecast(MoiraiForecast):
 class MoiraiPredictor(Predictor):
     def __init__(
         self,
+        model_name: str,
         data_schema: ForecastingSchema,
         prediction_net: CustomizableMoiraiForecast,
         prediction_length: int,
@@ -78,6 +79,7 @@ class MoiraiPredictor(Predictor):
         context_length: Optional[int] = 50,
     ) -> None:
         super().__init__(prediction_length, lead_time=lead_time)
+        self.model_name = model_name
         self.data_schema = data_schema
         self.num_samples = num_samples
         self.batch_size = batch_size
@@ -210,7 +212,7 @@ class MoiraiPredictor(Predictor):
             return 1
 
     def fit(self) -> MoiraiFinetune:
-        model = MoiraiFinetuneSmall.get_model()
+        model = MoiraiFinetune.get_model(self.model_name)
 
         trainer = FinetuneTrainer()
 
@@ -242,13 +244,6 @@ class MoiraiPredictor(Predictor):
         self.serialize
         joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
-    @staticmethod
-    def load(self, load_dir_path: str) -> "MoiraiPredictor":
-        model = MoiraiFinetuneSmall.from_pretrained(load_dir_path)
-        predictor = joblib.load(os.path.join(load_dir_path, "predictor.joblib"))
-        predictor.model = model
-        return predictor
-
     def serialize(self, path: Path) -> None:
         super().serialize(path)
 
@@ -270,45 +265,51 @@ class MoiraiPredictor(Predictor):
                 {
                     "batch_size": self.batch_size,
                     "prediction_length": self.prediction_length,
+                    "context_length": self.context_length,
+                    "patch_size": self.patch_size,
+                    "num_samples": self.num_samples,
                     "lead_time": self.lead_time,
                 },
                 fp,
                 indent=4,
             )
 
+        joblib.dump(self.data_schema, path / "data_schema.joblib")
+
     @classmethod
     def deserialize(
         cls,
         path: Path,
-        device: Optional[Union[str, torch.device]] = "cuda",
-        prediction_length=64,
-        context_length=1024,
-        patch_size="auto",
-        num_parallel_samples=20,
-        batch_size=32,
+        # prediction_length=64,
+        # context_length=1024,
+        # patch_size="auto",
+        # num_parallel_samples=20,
+        # batch_size=32,
     ) -> "MoiraiPredictor":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         with open(path / "predictor_config.json", "r") as fp:
             predictor_config: dict = json.load(fp)
 
-        predictor_config.update(
-            prediction_length=prediction_length,
-            batch_size=batch_size,
-        )
+        # predictor_config.update(
+        #     prediction_length=prediction_length,
+        #     batch_size=batch_size,
+        # )
 
         with open(path / "model.ckpt", "rb") as fp:
             ckpt = torch.load(fp, map_location=device)
         model = CustomizableMoiraiForecast(
             module_kwargs=ckpt["hyper_parameters"]["module_kwargs"],
-            prediction_length=prediction_length,
-            context_length=context_length,
-            patch_size=patch_size,
-            num_samples=num_parallel_samples,
+            prediction_length=predictor_config["prediction_length"],
+            # context_length=context_length,
+            # patch_size=patch_size,
+            # num_samples=num_parallel_samples,
             target_dim=1,
             feat_dynamic_real_dim=0,
             past_feat_dynamic_real_dim=0,
+            **predictor_config,
         )
         model.load_state_dict(ckpt["state_dict"])
-        data_schema = load_json_data_schema(paths.INPUT_SCHEMA_DIR)
+        data_schema = joblib.load(path / "data_schema.joblib")
 
         return MoiraiPredictor(
             prediction_net=model,
@@ -369,8 +370,6 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
 def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
     model.serialize(Path(model_dir))
-    with open(f"{model_dir}/dummy.txt", "w") as f:
-        f.write("dummy")
 
 
 def load_pretrained_model(
@@ -399,6 +398,7 @@ def load_pretrained_model(
         ),
         data_schema=data_schema,
         prediction_length=data_schema.forecast_length,
+        model_name=model_name,
         **kwargs,
     )
 

@@ -13,6 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any, Optional
 
@@ -507,6 +508,14 @@ class MoiraiFinetune(L.LightningModule):
             + SelectFields(fields=list(self.seq_fields))
         )
 
+    @staticmethod
+    def get_model(model_name: str):
+        return MoiraiFinetune.load_from_checkpoint(
+            checkpoint_path=os.path.join(
+                paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
+            )
+        )
+
 
 class MoiraiLinearProbe(MoiraiFinetune): ...
 
@@ -545,56 +554,6 @@ class FinetuneTrainer(L.Trainer):
             accumulate_grad_batches=1,
             gradient_clip_val=1.0,
             gradient_clip_algorithm="norm",
-        )
-
-
-class MoiraiFinetuneSmall(MoiraiFinetune):
-    def __init__(
-        self,
-    ):
-
-        module_kwargs = {
-            "distr_output": MixtureOutput(
-                components=[
-                    StudentTOutput(),
-                    NormalFixedScaleOutput(),
-                    NegativeBinomialOutput(),
-                    LogNormalOutput(),
-                ]
-            ),
-            "d_model": 384,
-            "num_layers": 6,
-            "patch_sizes": tuple([8, 16, 32, 64, 128]),
-            "max_seq_len": 512,
-            "attn_dropout_p": 0.0,
-            "dropout_p": 0.0,
-            "scaling": True,
-        }
-        args = {
-            "min_patches": 2,
-            "min_mask_ratio": 0.15,
-            "max_mask_ratio": 0.5,
-            "max_dim": 128,
-            "loss_func": PackedNLLLoss(),
-            "lr": 1e-3,
-            "weight_decay": 1e-1,
-            "beta1": 0.9,
-            "beta2": 0.98,
-            # "num_training_steps": 10000,
-            "num_training_steps": 1,
-            "num_warmup_steps": 0,
-            # "checkpoint_path": hf_hub_download(
-            #     repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
-            # ),
-        }
-        super().__init__(module_kwargs=module_kwargs, **args)
-
-    @staticmethod
-    def get_model():
-        return MoiraiFinetuneSmall.load_from_checkpoint(
-            checkpoint_path=hf_hub_download(
-                repo_id="Salesforce/moirai-1.0-R-small", filename="model.ckpt"
-            ),
         )
 
 

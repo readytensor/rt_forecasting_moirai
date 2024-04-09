@@ -63,3 +63,5 @@ DEFAULT_HYPERPARAMETERS_FILE_PATH = os.path.join(
 )
 
 STORED_DATASET_PATH = os.path.join(MODEL_ARTIFACTS_PATH, "dataset")
+
+PRETRAINED_MODEL_DIR = os.path.join(SRC_DIR, "prediction", "pretrained_model")
