@@ -297,9 +297,17 @@ class MoiraiPredictor(Predictor):
 
         with open(path / "model.ckpt", "rb") as fp:
             ckpt = torch.load(fp, map_location=device)
+
+        batch_size = 16
+        if "batch_size" in predictor_config.keys():
+            batch_size = predictor_config.pop("batch_size")
+
+        lead_time = 0
+        if "lead_time" in predictor_config.keys():
+            lead_time = predictor_config.pop("lead_time")
+
         model = CustomizableMoiraiForecast(
             module_kwargs=ckpt["hyper_parameters"]["module_kwargs"],
-            prediction_length=predictor_config["prediction_length"],
             # context_length=context_length,
             # patch_size=patch_size,
             # num_samples=num_parallel_samples,
@@ -312,8 +320,11 @@ class MoiraiPredictor(Predictor):
         data_schema = joblib.load(path / "data_schema.joblib")
 
         return MoiraiPredictor(
+            model_name="loaded_model",
             prediction_net=model,
             data_schema=data_schema,
+            batch_size=batch_size,
+            lead_time=lead_time,
             **predictor_config,
         )
 
