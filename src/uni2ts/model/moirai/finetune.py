@@ -523,7 +523,7 @@ class MoiraiLinearProbe(MoiraiFinetune): ...
 class FinetuneTrainer(L.Trainer):
     save_dir = paths.PREDICTOR_DIR_PATH
 
-    def __init__(self):
+    def __init__(self, max_epochs: int = 5):
         super().__init__(
             accelerator="auto",
             strategy="auto",
@@ -549,7 +549,7 @@ class FinetuneTrainer(L.Trainer):
                     strict=False,
                 ),
             ],
-            max_epochs=2,
+            max_epochs=max_epochs,
             enable_progress_bar=True,
             accumulate_grad_batches=1,
             gradient_clip_val=1.0,

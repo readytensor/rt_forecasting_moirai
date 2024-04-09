@@ -71,6 +71,7 @@ class MoiraiPredictor(Predictor):
         prediction_net: CustomizableMoiraiForecast,
         prediction_length: int,
         lead_time: int = 0,
+        max_epochs: int = 5,
         patch_size: Optional[Union[int, str]] = None,
         num_samples: Optional[int] = 20,
         batch_size: Optional[int] = 16,
@@ -81,6 +82,7 @@ class MoiraiPredictor(Predictor):
         self.data_schema = data_schema
         self.num_samples = num_samples
         self.batch_size = batch_size
+        self.max_epochs = max_epochs
         self.patch_size = patch_size
         self.context_length = context_length
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -212,7 +214,7 @@ class MoiraiPredictor(Predictor):
     def fit(self) -> MoiraiFinetune:
         model = MoiraiFinetune.get_model(self.model_name)
 
-        trainer = FinetuneTrainer()
+        trainer = FinetuneTrainer(max_epochs=self.max_epochs)
 
         dataset = SimpleDatasetBuilder(dataset=self.dataset).load_dataset(
             model.create_train_transform()
@@ -286,20 +288,15 @@ class MoiraiPredictor(Predictor):
         with open(path / "model.ckpt", "rb") as fp:
             ckpt = torch.load(fp, map_location=device)
 
-        batch_size = 16
-        if "batch_size" in predictor_config.keys():
-            batch_size = predictor_config.pop("batch_size")
-
-        lead_time = 0
-        if "lead_time" in predictor_config.keys():
-            lead_time = predictor_config.pop("lead_time")
-
         model = CustomizableMoiraiForecast(
             module_kwargs=ckpt["hyper_parameters"]["module_kwargs"],
             target_dim=1,
             feat_dynamic_real_dim=0,
             past_feat_dynamic_real_dim=0,
-            **predictor_config,
+            context_length=predictor_config["context_length"],
+            patch_size=predictor_config["patch_size"],
+            num_samples=predictor_config["num_samples"],
+            prediction_length=predictor_config["prediction_length"],
         )
         model.load_state_dict(ckpt["state_dict"])
         data_schema = joblib.load(path / "data_schema.joblib")
@@ -308,8 +305,6 @@ class MoiraiPredictor(Predictor):
             model_name="loaded_model",
             prediction_net=model,
             data_schema=data_schema,
-            batch_size=batch_size,
-            lead_time=lead_time,
             **predictor_config,
         )
 
