@@ -549,7 +549,7 @@ class FinetuneTrainer(L.Trainer):
                     strict=False,
                 ),
             ],
-            max_epochs=10,
+            max_epochs=2,
             enable_progress_bar=True,
             accumulate_grad_batches=1,
             gradient_clip_val=1.0,
