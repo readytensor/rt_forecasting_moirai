@@ -50,6 +50,7 @@ def run_training(
                 **default_hyperparameters,
             )
 
+        logger.info("Saving the trained model...")
         save_predictor_model(model=model, model_dir=paths.PREDICTOR_DIR_PATH)
 
     except Exception as exc:

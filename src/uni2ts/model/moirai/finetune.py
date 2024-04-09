@@ -538,7 +538,7 @@ class FinetuneTrainer(L.Trainer):
                     monitor="PackedNLLLoss",
                     save_weights_only=False,
                     mode="min",
-                    save_top_k=-1,
+                    save_top_k=1,
                     filename="model",
                 ),
                 EarlyStopping(
