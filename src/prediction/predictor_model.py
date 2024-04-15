@@ -211,7 +211,7 @@ class MoiraiPredictor(Predictor):
         else:
             return 1
 
-    def fit(self) -> MoiraiFinetune:
+    def fit(self) -> None:
         model = MoiraiFinetune.get_model(self.model_name)
 
         trainer = FinetuneTrainer(max_epochs=self.max_epochs)
@@ -238,8 +238,7 @@ class MoiraiPredictor(Predictor):
         )
         # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
         trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
-        self.model = model
-        return model
+        self.prediction_net = model
 
     def save(self, save_dir_path: str) -> None:
         del self.prediction_net
