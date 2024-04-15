@@ -45,7 +45,7 @@ def _from_long_dataframe(
 
     def example_gen_func() -> Generator[dict[str, Any], None, None]:
         for item_id in items:
-            item_df = df.query(f'{id_col} == "{item_id}"').drop(id_col, axis=1)
+            item_df = df.query(f'`{id_col}` == "{item_id}"').drop(id_col, axis=1)
             yield {
                 "target": item_df[target_col].to_numpy(),
                 "start": item_df.index[0],
