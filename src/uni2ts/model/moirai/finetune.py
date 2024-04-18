@@ -558,6 +558,7 @@ class FinetuneTrainer(L.Trainer):
 
 
 class ValidationDataLoader(DataLoader):
+    cpu_count = os.cpu_count()
 
     def __init__(self, dataset: Dataset, trainer: L.LightningModule):
         self.dataset = dataset
@@ -579,7 +580,7 @@ class ValidationDataLoader(DataLoader):
             num_batches_per_epoch=1,
             cycle=True,
             shuffle=True,
-            num_workers=11,
+            num_workers=self.cpu_count - 2,
             collate_fn=PackCollate(
                 max_length=512,
                 pad_func_map=MoiraiFinetune.pad_func_map,
@@ -596,6 +597,7 @@ class ValidationDataLoader(DataLoader):
 
 
 class TrainDataLoader(DataLoader):
+    cpu_count = os.cpu_count()
 
     def __init__(
         self, dataset: Dataset, trainer: L.LightningModule, batch_size: int = 32
@@ -619,7 +621,7 @@ class TrainDataLoader(DataLoader):
             num_batches_per_epoch=100,
             cycle=True,
             shuffle=True,
-            num_workers=11,
+            num_workers=self.cpu_count - 2,
             collate_fn=PackCollate(
                 max_length=512,
                 pad_func_map=MoiraiFinetune.pad_func_map,

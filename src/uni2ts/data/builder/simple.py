@@ -29,37 +29,35 @@ from uni2ts.common.typing import GenFunc
 from uni2ts.data.dataset import EvalDataset, SampleTimeSeriesType, TimeSeriesDataset
 from uni2ts.data.indexer import HuggingFaceDatasetIndexer
 from uni2ts.transform import Identity, Transformation
-from config import paths
 
 from ._base import DatasetBuilder
 
 
 def _from_long_dataframe(
     df: pd.DataFrame,
-    target_col: str,
     id_col: str,
-    freq: str,
+    target_col: str,
 ) -> tuple[GenFunc, Features]:
-
     items = df[id_col].unique()
 
     def example_gen_func() -> Generator[dict[str, Any], None, None]:
         for item_id in items:
-            item_df = df[df[id_col] == item_id].drop(id_col, axis=1)
+            item_df = df[df[id_col] == item_id][target_col]
+
             yield {
-                "target": item_df[target_col].to_numpy(),
+                "target": item_df.to_numpy(),
                 "start": item_df.index[0],
-                "freq": freq,
-                id_col: item_id,
+                "freq": pd.infer_freq(item_df.index),
+                "item_id": item_id,
             }
 
     features = Features(
-        {
-            id_col: Value("string"),
-            "start": Value("timestamp[s]"),
-            "freq": Value("string"),
-            "target": Sequence(Value("float32")),
-        }
+        dict(
+            item_id=Value("string"),
+            start=Value("timestamp[s]"),
+            freq=Value("string"),
+            target=Sequence(Value("float32")),
+        )
     )
 
     return example_gen_func, features
@@ -115,9 +113,11 @@ def _from_wide_dataframe_multivariate(
 @dataclass
 class SimpleDatasetBuilder(DatasetBuilder):
     dataset: str
-    weight: float = 1.0
+    weight: float = (1.0,)
+    id_col: str = ("item_id",)
+
     sample_time_series: Optional[SampleTimeSeriesType] = SampleTimeSeriesType.NONE
-    storage_path: Path = paths.STORED_DATASET_PATH
+    storage_path: Path = env.CUSTOM_DATA_PATH
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
@@ -125,10 +125,10 @@ class SimpleDatasetBuilder(DatasetBuilder):
     def build_dataset(
         self,
         file: Path,
+        dataset_type: str,
         time_col: str,
         id_col: str,
         target_col: str,
-        freq: str,
         offset: int = None,
         date_offset: pd.Timestamp = None,
     ):
@@ -138,21 +138,39 @@ class SimpleDatasetBuilder(DatasetBuilder):
         )
 
         df = pd.read_csv(file, index_col=time_col, parse_dates=True)
-
         if offset is not None:
-            df = df.iloc[:offset]
+            if dataset_type == "long":
+                groupes = df.groupby(id_col)
+                df = pd.concat([group[:offset] for _, group in groupes])
+            else:
+                df = df.iloc[:offset]
 
         if date_offset is not None:
-            df = df[df.index <= date_offset]
+            if dataset_type == "long":
+                groupes = df.groupby(id_col)
+                df = pd.concat(
+                    [group[group.index <= date_offset] for _, group in groupes]
+                )
+            else:
+                df = df[df.index <= date_offset]
 
-        example_gen_func, features = _from_long_dataframe(
-            df, id_col=id_col, target_col=target_col, freq=freq
-        )
+        if dataset_type == "long":
+            example_gen_func, features = _from_long_dataframe(
+                df, id_col=id_col, target_col=target_col
+            )
+        elif dataset_type == "wide":
+            example_gen_func, features = _from_wide_dataframe(df)
+        elif dataset_type == "wide_multivariate":
+            example_gen_func, features = _from_wide_dataframe_multivariate(df)
+        else:
+            raise ValueError(
+                f"Unrecognized dataset_type, {dataset_type}."
+                " Valid options are 'long', 'wide', and 'wide_multivariate'."
+            )
 
         hf_dataset = datasets.Dataset.from_generator(
             example_gen_func, features=features
         )
-
         hf_dataset.info.dataset_name = self.dataset
         hf_dataset.save_to_disk(self.storage_path / self.dataset)
 
@@ -178,24 +196,29 @@ class SimpleEvalDatasetBuilder(DatasetBuilder):
     prediction_length: Optional[int]
     context_length: Optional[int]
     patch_size: Optional[int]
-    storage_path: Path = paths.STORED_DATASET_PATH
+    storage_path: Path = env.CUSTOM_DATA_PATH
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
 
     def build_dataset(
-        self,
-        file: Path,
-        time_col: str,
-        id_col: str,
-        target_col: str,
-        freq: str,
+        self, file: Path, dataset_type: str, id_col: str, target_col: str, time_col: str
     ):
         df = pd.read_csv(file, index_col=time_col, parse_dates=True)
 
-        example_gen_func, features = _from_long_dataframe(
-            df, target_col=target_col, id_col=id_col, freq=freq
-        )
+        if dataset_type == "long":
+            example_gen_func, features = _from_long_dataframe(
+                df, id_col=id_col, target_col=target_col
+            )
+        elif dataset_type == "wide":
+            example_gen_func, features = _from_wide_dataframe(df)
+        elif dataset_type == "wide_multivariate":
+            example_gen_func, features = _from_wide_dataframe_multivariate(df)
+        else:
+            raise ValueError(
+                f"Unrecognized dataset_type, {dataset_type}."
+                " Valid options are 'long', 'wide', and 'wide_multivariate'."
+            )
 
         hf_dataset = datasets.Dataset.from_generator(
             example_gen_func, features=features
@@ -230,7 +253,7 @@ def generate_eval_builders(
     prediction_lengths: list[int],
     context_lengths: list[int],
     patch_sizes: list[int],
-    storage_path: Path = paths.STORED_DATASET_PATH,
+    storage_path: Path = env.CUSTOM_DATA_PATH,
 ) -> list[SimpleEvalDatasetBuilder]:
     return [
         SimpleEvalDatasetBuilder(
@@ -251,6 +274,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset_name", type=str)
     parser.add_argument("file_path", type=str)
+    parser.add_argument("--id_col", type=str)
+    parser.add_argument("--target_col", type=str)
+    parser.add_argument("--time_col", type=str)
     parser.add_argument(
         "--dataset_type",
         type=str,
@@ -273,6 +299,9 @@ if __name__ == "__main__":
         file=Path(args.file_path),
         dataset_type=args.dataset_type,
         offset=args.offset,
+        id_col=args.id_col,
+        target_col=args.target_col,
+        time_col=args.time_col,
         date_offset=pd.Timestamp(args.date_offset) if args.date_offset else None,
     )
 
@@ -285,4 +314,10 @@ if __name__ == "__main__":
             prediction_length=None,
             context_length=None,
             patch_size=None,
-        ).build_dataset(file=Path(args.file_path), dataset_type=args.dataset_type)
+        ).build_dataset(
+            file=Path(args.file_path),
+            dataset_type=args.dataset_type,
+            id_col=args.id_col,
+            target_col=args.target_col,
+            time_col=args.time_col,
+        )

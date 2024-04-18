@@ -77,6 +77,8 @@ class TimeSeriesDataset(Dataset):
         return len(self.indexer)
 
     def __len__(self) -> int:
+        if isinstance(self.dataset_weight, tuple):
+            self.dataset_weight = self.dataset_weight[0]
         return int(np.ceil(self.num_ts * self.dataset_weight))
 
     def _get_data(self, idx: int) -> dict[str, Data | BatchedData]:

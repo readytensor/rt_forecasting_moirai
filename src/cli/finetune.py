@@ -99,34 +99,34 @@ class DataModule(L.LightningDataModule):
 from uni2ts.model.moirai.finetune import MoiraiFinetuneSmall, FinetuneTrainer
 
 
-# @hydra.main(version_base="1.3", config_path="conf/finetune", config_name="default")
-# def main(cfg: DictConfig):
-#     if cfg.tf32:
-#         assert cfg.trainer.precision == 32
-#         torch.backends.cuda.matmul.allow_tf32 = True
-#         torch.backends.cudnn.allow_tf32 = True
+@hydra.main(version_base="1.3", config_path="conf/finetune", config_name="default")
+def main(cfg: DictConfig):
+    if cfg.tf32:
+        assert cfg.trainer.precision == 32
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
 
-#     model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(
-#         **call(cfg.model._args_, _convert_="all"),
-#     )
+    model: L.LightningModule = get_class(cfg.model._target_).load_from_checkpoint(
+        **call(cfg.model._args_, _convert_="all"),
+    )
 
-#     model = MoiraiFinetuneSmall()
-#     if cfg.compile:
-#         model.compile(mode=cfg.compile)
-#     trainer: L.Trainer = instantiate(cfg.trainer)
-#     train_dataset: Dataset = instantiate(cfg.data).load_dataset(
-#         model.create_train_transform()
-#     )
-#     val_dataset: Optional[Dataset] = (
-#         instantiate(cfg.val_data).load_dataset(model.create_val_transform)
-#         if "val_data" in cfg
-#         else None
-#     )
-#     L.seed_everything(cfg.seed + trainer.logger.version, workers=True)
-#     trainer.fit(
-#         model,
-#         datamodule=DataModule(cfg, train_dataset, val_dataset),
-#     )
+    model = MoiraiFinetuneSmall()
+    if cfg.compile:
+        model.compile(mode=cfg.compile)
+    trainer: L.Trainer = instantiate(cfg.trainer)
+    train_dataset: Dataset = instantiate(cfg.data).load_dataset(
+        model.create_train_transform()
+    )
+    val_dataset: Optional[Dataset] = (
+        instantiate(cfg.val_data).load_dataset(model.create_val_transform)
+        if "val_data" in cfg
+        else None
+    )
+    L.seed_everything(cfg.seed + trainer.logger.version, workers=True)
+    trainer.fit(
+        model,
+        datamodule=DataModule(cfg, train_dataset, val_dataset),
+    )
 
 
 if __name__ == "__main__":

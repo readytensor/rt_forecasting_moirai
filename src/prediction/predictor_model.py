@@ -1,5 +1,7 @@
 import os
+import sys
 import json
+import subprocess
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -99,35 +101,62 @@ class MoiraiPredictor(Predictor):
         file_name = [i for i in os.listdir(paths.TRAIN_DIR) if i.endswith(".csv")][0]
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
         dataset = file_name.removesuffix(".csv")
+        data = pd.read_csv(file_path)
+        print(data)
+        series_length = next(iter(data.groupby(self.data_schema.id_col)))[1].shape[0]
         freq = self.map_frequency(self.data_schema.frequency)
-        offset = None
-        SimpleDatasetBuilder(dataset=dataset).build_dataset(
-            file=Path(file_path),
-            offset=offset,
-            date_offset=None,
-            id_col=self.data_schema.id_col,
-            time_col=self.data_schema.time_col,
-            target_col=self.data_schema.target,
-            freq=freq,
-        )
-        if offset is not None:
-
-            SimpleEvalDatasetBuilder(
-                f"{dataset}_eval",
-                offset=offset,
-                windows=None,
-                distance=None,
-                prediction_length=self.data_schema.forecast_length,
-                context_length=None,
-                patch_size=None,
-            ).build_dataset(
-                file=Path(file_path),
-                id_col=self.data_schema.id_col,
-                time_col=self.data_schema.time_col,
-                target_col=self.data_schema.target,
-                freq=freq,
+        if self.data_schema.time_col_dtype in ["INT", "OTHER"]:
+            processed_data_path = os.path.join(
+                paths.MODEL_ARTIFACTS_PATH, f"{dataset}_processed.csv"
             )
+            made_up_frequency = "D"  # by days
+            made_up_start_dt = "1800-01-01 00:00:00"
+            start_date = pd.Timestamp(made_up_start_dt)
+            datetimes = pd.date_range(
+                start=start_date, periods=series_length, freq=made_up_frequency
+            )
+            grouped = data.groupby(self.data_schema.id_col)
+            with_dates = []
+            for _, series in grouped:
+                series[self.data_schema.time_col] = datetimes
+                with_dates.append(series)
+            data = pd.concat(with_dates)
+            data.to_csv(processed_data_path, index=False)
+        else:
+            processed_data_path = file_path
+        offset = int(0.8 * series_length)
+        print(processed_data_path)
+        command = [
+            "python3",
+            "-m",
+            "uni2ts.data.builder.simple",
+            dataset,
+            processed_data_path,
+            "--time_col",
+            self.data_schema.time_col,
+            "--id_col",
+            self.data_schema.id_col,
+            "--target_col",
+            self.data_schema.target,
+            "--dataset_type",
+            "long",
+            "--offset",
+            str(offset),
+        ]
+
+        # Run the command
+        result = subprocess.run(command, capture_output=True, text=True)
+
+        # Check if the command was successful
+        if result.returncode == 0:
+            print("Data processed successfully!")
+        else:
+            print("Error in data processing execution")
+            print("Error:", result.stderr)
+            sys.exit(1)
         self.dataset = dataset
+        self.offset = offset
+        self.series_length = series_length
 
     def predict(
         self,
@@ -142,13 +171,6 @@ class MoiraiPredictor(Predictor):
             if self.patch_size is not None
             else self.prediction_net.hparams.patch_size
         )
-
-        if self.patch_size == "auto_dataset":
-            patch_size = self._get_best_patch_size(
-                dataset, self.batch_size, context_length, prediction_length
-            )
-
-            count_patches[patch_size] = count_patches.get(patch_size, 0) + 1
 
         with self.prediction_net.custom_config(
             context_length=context_length,
@@ -188,7 +210,7 @@ class MoiraiPredictor(Predictor):
 
     def map_frequency(self, frequency: str) -> str:
 
-        if self.data_schema.time_col_dtype == "INT":
+        if self.data_schema.time_col_dtype == ["INT", "OTHER"]:
             return "D"
 
         frequency = frequency.lower()
@@ -220,29 +242,32 @@ class MoiraiPredictor(Predictor):
             model.create_train_transform()
         )
 
-        # val_dataset = SimpleDatasetBuilder(dataset=f"{self.dataset}_eval").load_dataset(
-        #     model.create_val_transform
-        # )
-        # val_dataset = ConcatDatasetBuilder(
-        #     *generate_eval_builders(
-        #         dataset="banks_split_eval",
-        #         offset=2000,
-        #         eval_length=200,
-        #         prediction_lengths=[96, 192, 336, 720],
-        #         context_lengths=[1000, 2000, 3000, 4000, 5000],
-        #         patch_sizes=[32, 64],
-        #     )
-        # ).load_dataset(model.create_val_transform)
+        patch_sizes = [2**i for i in range(3, 7) if 2**i <= self.series_length // 2]
+
+        val_dataset = ConcatDatasetBuilder(
+            *generate_eval_builders(
+                dataset=f"{self.dataset}_eval",
+                offset=self.offset,
+                eval_length=self.series_length - self.offset,
+                prediction_lengths=[self.data_schema.forecast_length],
+                context_lengths=[self.offset],
+                patch_sizes=patch_sizes,
+            )
+        ).load_dataset(model.create_val_transform)
+
+        print("done!")
         train_dataloader = TrainDataLoader(
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )
-        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
-        trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
+        val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        trainer.fit(
+            model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
+        )
         self.prediction_net = model
 
     def save(self, save_dir_path: str) -> None:
         del self.prediction_net
-        self.serialize
+        self.serialize(save_dir_path)
         joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
     def serialize(self, path: Path) -> None:
