@@ -544,7 +544,7 @@ class FinetuneTrainer(L.Trainer):
                 EarlyStopping(
                     monitor="val_loss",
                     min_delta=0.05,
-                    patience=3,
+                    patience=2,
                     mode="min",
                     strict=False,
                 ),
