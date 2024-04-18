@@ -102,7 +102,8 @@ class MoiraiPredictor(Predictor):
         data = pd.read_csv(file_path)
         series_length = next(iter(data.groupby(self.data_schema.id_col)))[1].shape[0]
         freq = self.map_frequency(self.data_schema.frequency)
-        offset = int(0.8 * series_length)
+        # offset = int(0.8 * series_length)
+        offset = None
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
             offset=offset,
@@ -239,9 +240,7 @@ class MoiraiPredictor(Predictor):
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )
         val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
-        trainer.fit(
-            model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
-        )
+        trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
         self.prediction_net = model
 
     def save(self, save_dir_path: str) -> None:
