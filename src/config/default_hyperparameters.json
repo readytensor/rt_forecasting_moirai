@@ -1,7 +1,7 @@
 {
     "batch_size": 16,
     "patch_size": "auto",
-    "num_samples": 20,
-    "context_length": 100,
-    "max_epochs": 2
+    "num_samples": 30,
+    "context_length": 2000,
+    "max_epochs": 10
 }

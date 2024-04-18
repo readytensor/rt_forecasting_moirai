@@ -8,7 +8,6 @@ from logger import get_logger, log_error
 from prediction.predictor_model import (
     predict_with_model,
     load_predictor_model,
-    load_pretrained_model,
 )
 
 from schema.data_schema import load_json_data_schema
@@ -127,12 +126,6 @@ def run_batch_predictions(
             logger.info("Loading predictor model...")
             predictor_model = load_predictor_model(
                 save_dir_path=predictor_dir_path,
-            )
-
-            predictor_model = load_pretrained_model(
-                model_name=model_config["model_name"],
-                data_schema=data_schema,
-                **default_hyperparameters,
             )
 
             logger.info("Making predictions...")
