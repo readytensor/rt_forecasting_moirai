@@ -102,9 +102,7 @@ class MoiraiPredictor(Predictor):
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
         dataset = file_name.removesuffix(".csv")
         data = pd.read_csv(file_path)
-        print(data)
         series_length = next(iter(data.groupby(self.data_schema.id_col)))[1].shape[0]
-        freq = self.map_frequency(self.data_schema.frequency)
         if self.data_schema.time_col_dtype in ["INT", "OTHER"]:
             processed_data_path = os.path.join(
                 paths.MODEL_ARTIFACTS_PATH, f"{dataset}_processed.csv"
@@ -125,7 +123,6 @@ class MoiraiPredictor(Predictor):
         else:
             processed_data_path = file_path
         offset = int(0.8 * series_length)
-        print(processed_data_path)
         command = [
             "python3",
             "-m",
@@ -231,7 +228,7 @@ class MoiraiPredictor(Predictor):
         if frequency == "secondly":
             return "S"
         else:
-            return 1
+            return "D"
 
     def fit(self) -> None:
         model = MoiraiFinetune.get_model(self.model_name)
@@ -362,6 +359,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
             if schema.time_col_dtype not in ["INT", "OTHER"]
             else "2020-01-01"
         )
+
         forecast = list(
             model.predict(
                 dataset=[
