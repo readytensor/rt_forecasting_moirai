@@ -255,7 +255,6 @@ class MoiraiPredictor(Predictor):
             )
         ).load_dataset(model.create_val_transform)
 
-        print("done!")
         train_dataloader = TrainDataLoader(
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )

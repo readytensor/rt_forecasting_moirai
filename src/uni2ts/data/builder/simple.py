@@ -31,6 +31,7 @@ from uni2ts.data.indexer import HuggingFaceDatasetIndexer
 from uni2ts.transform import Identity, Transformation
 
 from ._base import DatasetBuilder
+from config import paths
 
 
 def _from_long_dataframe(
@@ -117,7 +118,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
     id_col: str = ("item_id",)
 
     sample_time_series: Optional[SampleTimeSeriesType] = SampleTimeSeriesType.NONE
-    storage_path: Path = env.CUSTOM_DATA_PATH
+    storage_path: Path = Path(paths.MODEL_ARTIFACTS_PATH)
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
@@ -196,7 +197,7 @@ class SimpleEvalDatasetBuilder(DatasetBuilder):
     prediction_length: Optional[int]
     context_length: Optional[int]
     patch_size: Optional[int]
-    storage_path: Path = env.CUSTOM_DATA_PATH
+    storage_path: Path = Path(paths.MODEL_ARTIFACTS_PATH)
 
     def __post_init__(self):
         self.storage_path = Path(self.storage_path)
@@ -253,7 +254,7 @@ def generate_eval_builders(
     prediction_lengths: list[int],
     context_lengths: list[int],
     patch_sizes: list[int],
-    storage_path: Path = env.CUSTOM_DATA_PATH,
+    storage_path: Path = Path(paths.MODEL_ARTIFACTS_PATH),
 ) -> list[SimpleEvalDatasetBuilder]:
     return [
         SimpleEvalDatasetBuilder(
