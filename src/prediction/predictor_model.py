@@ -240,7 +240,6 @@ class MoiraiPredictor(Predictor):
         )
 
         patch_sizes = [2**i for i in range(3, 7) if 2**i <= self.series_length // 2]
-        print("context:", self.offset)
         val_dataset = ConcatDatasetBuilder(
             *generate_eval_builders(
                 dataset=f"{self.dataset}_eval",
@@ -260,11 +259,6 @@ class MoiraiPredictor(Predictor):
             model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
         )
         self.prediction_net = model
-
-    def save(self, save_dir_path: str) -> None:
-        del self.prediction_net
-        self.serialize(save_dir_path)
-        joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
     def serialize(self, path: Path) -> None:
         super().serialize(path)

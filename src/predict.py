@@ -129,6 +129,12 @@ def run_batch_predictions(
                 save_dir_path=predictor_dir_path,
             )
 
+            predictor_model = load_pretrained_model(
+                model_name=model_config["model_name"],
+                data_schema=data_schema,
+                **default_hyperparameters,
+            )
+
             logger.info("Making predictions...")
             predictions = predict_with_model(
                 model=predictor_model,
