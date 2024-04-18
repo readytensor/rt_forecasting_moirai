@@ -99,8 +99,10 @@ class MoiraiPredictor(Predictor):
         file_name = [i for i in os.listdir(paths.TRAIN_DIR) if i.endswith(".csv")][0]
         file_path = os.path.join(paths.TRAIN_DIR, file_name)
         dataset = file_name.removesuffix(".csv")
+        data = pd.read_csv(file_path)
+        series_length = next(iter(data.groupby(self.data_schema.id_col)))[1].shape[0]
         freq = self.map_frequency(self.data_schema.frequency)
-        offset = None
+        offset = int(0.8 * series_length)
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
             offset=offset,
@@ -114,10 +116,10 @@ class MoiraiPredictor(Predictor):
 
             SimpleEvalDatasetBuilder(
                 f"{dataset}_eval",
-                offset=offset,
+                offset=None,
                 windows=None,
                 distance=None,
-                prediction_length=self.data_schema.forecast_length,
+                prediction_length=None,
                 context_length=None,
                 patch_size=None,
             ).build_dataset(
@@ -128,6 +130,8 @@ class MoiraiPredictor(Predictor):
                 freq=freq,
             )
         self.dataset = dataset
+        self.series_length = series_length
+        self.offset = offset
 
     def predict(
         self,
@@ -220,29 +224,28 @@ class MoiraiPredictor(Predictor):
             model.create_train_transform()
         )
 
-        # val_dataset = SimpleDatasetBuilder(dataset=f"{self.dataset}_eval").load_dataset(
-        #     model.create_val_transform
-        # )
-        # val_dataset = ConcatDatasetBuilder(
-        #     *generate_eval_builders(
-        #         dataset="banks_split_eval",
-        #         offset=2000,
-        #         eval_length=200,
-        #         prediction_lengths=[96, 192, 336, 720],
-        #         context_lengths=[1000, 2000, 3000, 4000, 5000],
-        #         patch_sizes=[32, 64],
-        #     )
-        # ).load_dataset(model.create_val_transform)
+        patch_sizes = [2**i for i in range(3, 7) if 2**i <= self.series_length // 2]
+        val_dataset = ConcatDatasetBuilder(
+            *generate_eval_builders(
+                dataset=f"{self.dataset}_eval",
+                offset=self.offset,
+                eval_length=self.series_length - self.offset,
+                prediction_lengths=[self.data_schema.forecast_length],
+                context_lengths=[min(self.offset, 1000)],
+                patch_sizes=patch_sizes,
+            )
+        ).load_dataset(model.create_val_transform)
         train_dataloader = TrainDataLoader(
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )
-        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
-        trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
+        val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        trainer.fit(
+            model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
+        )
         self.prediction_net = model
 
     def save(self, save_dir_path: str) -> None:
         del self.prediction_net
-        self.serialize
         joblib.dump(self, os.path.join(save_dir_path, "predictor.joblib"))
 
     def serialize(self, path: Path) -> None:

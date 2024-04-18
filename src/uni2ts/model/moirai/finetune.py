@@ -535,14 +535,14 @@ class FinetuneTrainer(L.Trainer):
                 LearningRateMonitor(logging_interval="epoch"),
                 ModelCheckpoint(
                     dirpath=self.save_dir,
-                    monitor="PackedNLLLoss",
+                    monitor="val_loss",
                     save_weights_only=False,
                     mode="min",
                     save_top_k=1,
                     filename="model",
                 ),
                 EarlyStopping(
-                    monitor="PackedNLLLoss",
+                    monitor="val_loss",
                     min_delta=0.0,
                     patience=3,
                     mode="min",
