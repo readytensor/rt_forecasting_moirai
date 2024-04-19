@@ -226,20 +226,20 @@ class MoiraiPredictor(Predictor):
         )
 
         patch_sizes = [2**i for i in range(3, 7) if 2**i <= self.series_length // 2]
-        val_dataset = ConcatDatasetBuilder(
-            *generate_eval_builders(
-                dataset=f"{self.dataset}_eval",
-                offset=self.offset,
-                eval_length=self.series_length - self.offset,
-                prediction_lengths=[self.data_schema.forecast_length],
-                context_lengths=[min(self.offset, 1000)],
-                patch_sizes=patch_sizes,
-            )
-        ).load_dataset(model.create_val_transform)
+        # val_dataset = ConcatDatasetBuilder(
+        #     *generate_eval_builders(
+        #         dataset=f"{self.dataset}_eval",
+        #         offset=self.offset,
+        #         eval_length=self.series_length - self.offset,
+        #         prediction_lengths=[self.data_schema.forecast_length],
+        #         context_lengths=[min(self.offset, 1000)],
+        #         patch_sizes=patch_sizes,
+        #     )
+        # ).load_dataset(model.create_val_transform)
         train_dataloader = TrainDataLoader(
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )
-        val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
         trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=None)
         self.prediction_net = model
 
