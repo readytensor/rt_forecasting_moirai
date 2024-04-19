@@ -579,7 +579,7 @@ class ValidationDataLoader(DataLoader):
             num_batches_per_epoch=1,
             cycle=True,
             shuffle=True,
-            num_workers=11,
+            num_workers=3,
             collate_fn=PackCollate(
                 max_length=512,
                 pad_func_map=MoiraiFinetune.pad_func_map,
@@ -619,7 +619,7 @@ class TrainDataLoader(DataLoader):
             num_batches_per_epoch=100,
             cycle=True,
             shuffle=True,
-            num_workers=11,
+            num_workers=3,
             collate_fn=PackCollate(
                 max_length=512,
                 pad_func_map=MoiraiFinetune.pad_func_map,
