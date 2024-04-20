@@ -131,6 +131,7 @@ class SimpleDatasetBuilder(DatasetBuilder):
         freq: str,
         offset: int = None,
         date_offset: pd.Timestamp = None,
+        dataset_type: str = "long",
     ):
         assert offset is None or date_offset is None, (
             "One or neither offset and date_offset must be specified, but not both. "
@@ -140,7 +141,11 @@ class SimpleDatasetBuilder(DatasetBuilder):
         df = pd.read_csv(file, index_col=time_col, parse_dates=True)
 
         if offset is not None:
-            df = df.iloc[:offset]
+            if dataset_type == "long":
+                groupes = df.groupby(id_col)
+                df = pd.concat([group[:offset] for _, group in groupes])
+            else:
+                df = df.iloc[:offset]
 
         if date_offset is not None:
             df = df[df.index <= date_offset]
