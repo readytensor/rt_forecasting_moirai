@@ -56,6 +56,7 @@ class MoiraiModule(nn.Module):
         self.scaling = scaling
 
         self.mask_encoding = nn.Embedding(num_embeddings=1, embedding_dim=d_model)
+        print(scaling, "scaling")
         self.scaler = PackedStdScaler() if scaling else PackedNOPScaler()
         self.in_proj = MultiInSizeLinear(
             in_features_ls=patch_sizes,

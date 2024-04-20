@@ -102,8 +102,8 @@ class MoiraiPredictor(Predictor):
         data = pd.read_csv(file_path)
         series_length = next(iter(data.groupby(self.data_schema.id_col)))[1].shape[0]
         freq = self.map_frequency(self.data_schema.frequency)
-        offset = int(0.8 * series_length)
-        # offset = None
+        # offset = int(0.8 * series_length)
+        offset = None
         SimpleDatasetBuilder(dataset=dataset).build_dataset(
             file=Path(file_path),
             offset=offset,
@@ -148,12 +148,6 @@ class MoiraiPredictor(Predictor):
             else self.prediction_net.hparams.patch_size
         )
 
-        if self.patch_size == "auto_dataset":
-            patch_size = self._get_best_patch_size(
-                dataset, self.batch_size, context_length, prediction_length
-            )
-
-            count_patches[patch_size] = count_patches.get(patch_size, 0) + 1
 
         with self.prediction_net.custom_config(
             context_length=context_length,
@@ -226,22 +220,22 @@ class MoiraiPredictor(Predictor):
         )
 
         patch_sizes = [2**i for i in range(3, 7) if 2**i <= self.series_length // 2]
-        val_dataset = ConcatDatasetBuilder(
-            *generate_eval_builders(
-                dataset=f"{self.dataset}_eval",
-                offset=self.offset,
-                eval_length=self.series_length - self.offset,
-                prediction_lengths=[self.data_schema.forecast_length],
-                context_lengths=[min(self.offset, 1000)],
-                patch_sizes=patch_sizes,
-            )
-        ).load_dataset(model.create_val_transform)
+        # val_dataset = ConcatDatasetBuilder(
+        #     *generate_eval_builders(
+        #         dataset=f"{self.dataset}_eval",
+        #         offset=self.offset,
+        #         eval_length=self.series_length - self.offset,
+        #         prediction_lengths=[self.data_schema.forecast_length],
+        #         context_lengths=[min(self.offset, 1000)],
+        #         patch_sizes=patch_sizes,
+        #     )
+        # ).load_dataset(model.create_val_transform)
         train_dataloader = TrainDataLoader(
             dataset=dataset, trainer=trainer, batch_size=self.batch_size
         )
-        val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
+        # val_dataloader = ValidationDataLoader(dataset=val_dataset, trainer=trainer)
         trainer.fit(
-            model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
+            model, train_dataloaders=train_dataloader, val_dataloaders=None
         )
         self.prediction_net = model
 
