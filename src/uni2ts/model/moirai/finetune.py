@@ -510,30 +510,16 @@ class MoiraiFinetune(L.LightningModule):
 
     @staticmethod
     def get_model(model_name: str):
-        module_kwargs = {
-            "distr_output": MixtureOutput(
-                components=[
-                    StudentTOutput(),
-                    NormalFixedScaleOutput(),
-                    NegativeBinomialOutput(),
-                    LogNormalOutput(),
-                ]
-            ),
-            "d_model": 768,
-            "num_layers": 12,
-            "patch_sizes": (
-                8,
-                16,
-                32,
-                64,
-                128,
-            ),  # Assuming this tuple conversion is correct
-            "max_seq_len": 512,
-            "attn_dropout_p": 0.0,
-            "dropout_p": 0.0,
-            "scaling": True,
-        }
-        # Other training configurations
+        if "small" in model_name:
+            d_model = 384
+            num_layers = 6
+        elif "base" in model_name:
+            d_model = 768
+            num_layers = 12
+        elif "large" in model_name:
+            d_model = 1024
+            num_layers = 24
+
         lr = 1e-3
         weight_decay = 1e-1
         beta1 = 0.9
@@ -550,12 +536,6 @@ class MoiraiFinetune(L.LightningModule):
         checkpoint_path = os.path.join(
             paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
         )
-        # return MoiraiFinetune.load_from_checkpoint(
-        #     checkpoint_path=os.path.join(
-        #         paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
-        #     ),
-
-        # )
         return MoiraiFinetune.load_from_checkpoint(
             checkpoint_path=checkpoint_path,
             module_kwargs={
@@ -567,8 +547,8 @@ class MoiraiFinetune(L.LightningModule):
                         LogNormalOutput(),
                     ]
                 ),
-                "d_model": 768,
-                "num_layers": 12,
+                "d_model": d_model,
+                "num_layers": num_layers,
                 "patch_sizes": (8, 16, 32, 64, 128),
                 "max_seq_len": 512,
                 "attn_dropout_p": 0.0,
@@ -593,7 +573,7 @@ class MoiraiLinearProbe(MoiraiFinetune): ...
 
 
 class FinetuneTrainer(L.Trainer):
-    save_dir = paths.PREDICTOR_DIR_PATH
+    save_dir = paths.PREDICTOR_DIR_PATHs
 
     def __init__(self, max_epochs: int = 5):
         super().__init__(
@@ -640,7 +620,7 @@ class ValidationDataLoader(DataLoader):
                 num_replicas=None,
                 rank=None,
                 shuffle=True,
-                seed=0,  # Assuming your DistributedSampler supports a 'seed' argument
+                seed=0,
                 drop_last=False,
             )
 
@@ -680,7 +660,7 @@ class TrainDataLoader(DataLoader):
                 num_replicas=trainer.world_size,
                 rank=trainer.global_rank,
                 shuffle=True,
-                seed=0,  # Assuming your DistributedSampler supports a 'seed' argument
+                seed=0,
                 drop_last=False,
             )
 
