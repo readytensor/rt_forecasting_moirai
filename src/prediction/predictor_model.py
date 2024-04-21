@@ -138,8 +138,8 @@ class MoiraiPredictor(Predictor):
             self.data_schema.target,
             "--dataset_type",
             "long",
-            "--offset",
-            str(offset),
+            # "--offset",
+            # str(offset),
         ]
 
         # Run the command
