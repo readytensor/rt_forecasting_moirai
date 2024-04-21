@@ -510,10 +510,31 @@ class MoiraiFinetune(L.LightningModule):
 
     @staticmethod
     def get_model(model_name: str):
-        return MoiraiFinetune.load_from_checkpoint(
-            checkpoint_path=os.path.join(
-                paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
-            )
+        if "small" in model_name:
+            d_model = 384
+            num_layers = 6
+        elif "base" in model_name:
+            d_model = 768
+            num_layers = 12
+        elif "large" in model_name:
+            d_model = 1024
+            num_layers = 24
+
+        lr = 1e-3
+        weight_decay = 1e-1
+        beta1 = 0.9
+        beta2 = 0.98
+        num_training_steps = 1000  # Assuming some fixed value
+        num_warmup_steps = 0
+        min_patches = 2
+        min_mask_ratio = 0.15
+        max_mask_ratio = 0.5
+        max_dim = 128
+
+        # Loss function and other components
+        loss_func = PackedNLLLoss()
+        checkpoint_path = os.path.join(
+            paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
         )
 
 
