@@ -510,10 +510,62 @@ class MoiraiFinetune(L.LightningModule):
 
     @staticmethod
     def get_model(model_name: str):
+        if "small" in model_name:
+            d_model = 384
+            num_layers = 6
+        elif "base" in model_name:
+            d_model = 768
+            num_layers = 12
+        elif "large" in model_name:
+            d_model = 1024
+            num_layers = 24
+
+        lr = 1e-3
+        weight_decay = 1e-1
+        beta1 = 0.9
+        beta2 = 0.98
+        num_training_steps = 1000  # Assuming some fixed value
+        num_warmup_steps = 0
+        min_patches = 2
+        min_mask_ratio = 0.15
+        max_mask_ratio = 0.5
+        max_dim = 128
+
+        # Loss function and other components
+        loss_func = PackedNLLLoss()
+        checkpoint_path = os.path.join(
+            paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
+        )
         return MoiraiFinetune.load_from_checkpoint(
-            checkpoint_path=os.path.join(
-                paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
-            )
+            checkpoint_path=checkpoint_path,
+            module_kwargs={
+                "distr_output": MixtureOutput(
+                    components=[
+                        StudentTOutput(),
+                        NormalFixedScaleOutput(),
+                        NegativeBinomialOutput(),
+                        LogNormalOutput(),
+                    ]
+                ),
+                "d_model": d_model,
+                "num_layers": num_layers,
+                "patch_sizes": (8, 16, 32, 64, 128),
+                "max_seq_len": 512,
+                "attn_dropout_p": 0.0,
+                "dropout_p": 0.0,
+                "scaling": True,
+            },
+            lr=lr,
+            weight_decay=weight_decay,
+            beta1=beta1,
+            beta2=beta2,
+            num_training_steps=num_training_steps,
+            num_warmup_steps=num_warmup_steps,
+            loss_func=loss_func,
+            min_patches=min_patches,
+            min_mask_ratio=min_mask_ratio,
+            max_mask_ratio=max_mask_ratio,
+            max_dim=max_dim,
         )
 
 
