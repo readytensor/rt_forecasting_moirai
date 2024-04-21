@@ -536,6 +536,37 @@ class MoiraiFinetune(L.LightningModule):
         checkpoint_path = os.path.join(
             paths.PRETRAINED_MODEL_DIR, model_name, "model.ckpt"
         )
+        return MoiraiFinetune.load_from_checkpoint(
+            checkpoint_path=checkpoint_path,
+            module_kwargs={
+                "distr_output": MixtureOutput(
+                    components=[
+                        StudentTOutput(),
+                        NormalFixedScaleOutput(),
+                        NegativeBinomialOutput(),
+                        LogNormalOutput(),
+                    ]
+                ),
+                "d_model": d_model,
+                "num_layers": num_layers,
+                "patch_sizes": (8, 16, 32, 64, 128),
+                "max_seq_len": 512,
+                "attn_dropout_p": 0.0,
+                "dropout_p": 0.0,
+                "scaling": True,
+            },
+            lr=lr,
+            weight_decay=weight_decay,
+            beta1=beta1,
+            beta2=beta2,
+            num_training_steps=num_training_steps,
+            num_warmup_steps=num_warmup_steps,
+            loss_func=loss_func,
+            min_patches=min_patches,
+            min_mask_ratio=min_mask_ratio,
+            max_mask_ratio=max_mask_ratio,
+            max_dim=max_dim,
+        )
 
 
 class MoiraiLinearProbe(MoiraiFinetune): ...
