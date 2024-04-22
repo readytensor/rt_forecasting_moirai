@@ -1,6 +1,6 @@
 {
     "batch_size": 32,
     "patch_size": "auto",
-    "num_samples": 20,
-    "context_length": 500
+    "num_samples": 50,
+    "context_length": 100
 }
