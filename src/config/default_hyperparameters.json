@@ -2,5 +2,5 @@
     "batch_size": 32,
     "patch_size": "auto",
     "num_samples": 100,
-    "context_length": 500
+    "context_length": 1000
 }
