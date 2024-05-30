@@ -50,8 +50,7 @@ RUN python3.11 -m pip install --no-cache-dir -r /opt/requirements.txt
 
 
 # Copy model config file and model downloading script into the image
-COPY ./src/config/model_config.json /opt/src/config/model_config.json
-COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
+COPY src /opt/src
 # Download the intended model - we are caching the model in the image
 RUN python /opt/src/prediction/download_model.py
 
@@ -65,7 +64,6 @@ RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && chmod -R 777 /opt
 
 # Copy source code into image and set permissions
-COPY src /opt/src
 
 # Set working directory
 WORKDIR /opt/src
