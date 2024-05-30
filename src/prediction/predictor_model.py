@@ -270,9 +270,14 @@ def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
 
 
 def load_predictor_model(
-    model_name: str, data_schema: ForecastingSchema, prediction_length: int, **kwargs
+    model_name: str, data_schema: ForecastingSchema, **kwargs
 ) -> MoiraiPredictor:
 
+    if "batch_size" in kwargs:
+        batch_size = kwargs["batch_size"]
+        kwargs.pop("batch_size")
+    else:
+        batch_size = 16
     pretrained_model_root_path = os.path.join(
         os.path.dirname(__file__), "pretrained_model", model_name
     )
@@ -286,7 +291,7 @@ def load_predictor_model(
             f"Salesforce/{model_name}",
             cache_dir=pretrained_model_root_path,
         ),
-        prediction_length=prediction_length,
+        prediction_length=data_schema.forecast_length,
         target_dim=1,
         feat_dynamic_real_dim=0,
         past_feat_dynamic_real_dim=0,
@@ -296,7 +301,8 @@ def load_predictor_model(
     model = MoiraiPredictor(
         prediction_net=prediction_net,
         data_schema=data_schema,
-        prediction_length=prediction_length,
+        prediction_length=data_schema.forecast_length,
+        batch_size=batch_size,
         **kwargs,
     )
 
