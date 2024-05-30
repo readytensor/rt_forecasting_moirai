@@ -1,12 +1,15 @@
 import os
 import json
-from huggingface_hub import PyTorchModelHubMixin
+
+import sys
+
+print(sys.path)
+
+from uni2ts.model.moirai import MoiraiModule
 
 
 def download_pretrained_model_if_not_exists(directory_path, model_name):
-    PyTorchModelHubMixin.from_pretrained(
-        f"Salesforce/{model_name}", cache_dir=directory_path
-    )
+    MoiraiModule.from_pretrained(f"Salesforce/{model_name}", cache_dir=directory_path)
     print(f"Model `{model_name}` is ready.")
 
 
