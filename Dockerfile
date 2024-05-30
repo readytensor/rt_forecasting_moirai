@@ -70,6 +70,7 @@ WORKDIR /opt/src
 ENV PYTHONUNBUFFERED=TRUE \
     PYTHONDONTWRITEBYTECODE=TRUE \
     PATH="/opt/src:${PATH}" \
+    PYTHONPATH="/opt/src:${PYTHONPATH}" \
     TORCH_HOME="/opt" \
     MPLCONFIGDIR="/opt" \
     HF_HOME="/opt"
