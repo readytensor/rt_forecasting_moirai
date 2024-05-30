@@ -1,12 +1,12 @@
 import os
-from contextlib import contextmanager
-from copy import deepcopy
-from pathlib import Path
-from typing import Iterator, Optional, Union
 import torch
-import torch.nn as nn
+
 import numpy as np
 import pandas as pd
+import torch.nn as nn
+from contextlib import contextmanager
+from copy import deepcopy
+from typing import Iterator, Optional, Union
 from gluonts.dataset.common import Dataset
 from gluonts.dataset.loader import InferenceDataLoader
 from gluonts.model.forecast import Forecast
@@ -15,9 +15,9 @@ from gluonts.model.predictor import Predictor
 from gluonts.torch.batchify import batchify
 from gluonts.transform import SelectFields, TestSplitSampler
 from gluonts.transform.split import TFTInstanceSplitter
-from uni2ts.model.moirai.forecast import MoiraiForecast
 from schema.data_schema import ForecastingSchema
 from prediction.download_model import download_pretrained_model_if_not_exists
+from uni2ts.model.moirai import MoiraiModule, MoiraiForecast
 
 
 class CustomizableMoiraiForecast(MoiraiForecast):
@@ -154,11 +154,11 @@ class MoiraiPredictor(Predictor):
             if self.patch_size is not None
             else self.prediction_net.hparams.patch_size
         )
+
         if self.patch_size == "auto_dataset":
             patch_size = self._get_best_patch_size(
                 dataset, self.batch_size, context_length, prediction_length
             )
-            print("Selected patch_size:", patch_size)
 
         with self.prediction_net.custom_config(
             context_length=context_length,
@@ -240,7 +240,6 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
             if schema.time_col_dtype not in ["INT", "OTHER"]
             else "2020-01-01"
         )
-        print(schema.frequency)
         forecast = list(
             model.predict(
                 dataset=[
@@ -271,9 +270,14 @@ def save_predictor_model(model: MoiraiPredictor, model_dir: str) -> None:
 
 
 def load_predictor_model(
-    model_name: str, data_schema: ForecastingSchema, prediction_length: int, **kwargs
+    model_name: str, data_schema: ForecastingSchema, **kwargs
 ) -> MoiraiPredictor:
 
+    if "batch_size" in kwargs:
+        batch_size = kwargs["batch_size"]
+        kwargs.pop("batch_size")
+    else:
+        batch_size = 16
     pretrained_model_root_path = os.path.join(
         os.path.dirname(__file__), "pretrained_model", model_name
     )
@@ -282,20 +286,23 @@ def load_predictor_model(
         pretrained_model_root_path, model_name=model_name
     )
 
-    ckpt_path = Path(os.path.join(pretrained_model_root_path, "model.ckpt"))
+    prediction_net = CustomizableMoiraiForecast(
+        module=MoiraiModule.from_pretrained(
+            f"Salesforce/{model_name}",
+            cache_dir=pretrained_model_root_path,
+        ),
+        prediction_length=data_schema.forecast_length,
+        target_dim=1,
+        feat_dynamic_real_dim=0,
+        past_feat_dynamic_real_dim=0,
+        **kwargs,
+    )
 
     model = MoiraiPredictor(
-        prediction_net=CustomizableMoiraiForecast.load_from_checkpoint(
-            checkpoint_path=ckpt_path,
-            prediction_length=prediction_length,
-            target_dim=1,
-            feat_dynamic_real_dim=0,
-            past_feat_dynamic_real_dim=0,
-            map_location="cuda:0" if torch.cuda.is_available() else "cpu",
-            **kwargs,
-        ),
+        prediction_net=prediction_net,
         data_schema=data_schema,
-        prediction_length=prediction_length,
+        prediction_length=data_schema.forecast_length,
+        batch_size=batch_size,
         **kwargs,
     )
 

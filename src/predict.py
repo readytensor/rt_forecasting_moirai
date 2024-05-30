@@ -123,7 +123,6 @@ def run_batch_predictions(
             logger.info("Loading predictor model...")
             predictor_model = load_predictor_model(
                 model_name=model_config["model_name"],
-                prediction_length=data_schema.forecast_length,
                 data_schema=data_schema,
                 **default_hyperparameters,
             )

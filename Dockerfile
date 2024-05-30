@@ -49,11 +49,8 @@ COPY ./requirements.txt /opt/
 RUN python3.11 -m pip install --no-cache-dir -r /opt/requirements.txt
 
 
-# Copy model config file and model downloading script into the image
-COPY ./src/config/model_config.json /opt/src/config/model_config.json
-COPY ./src/prediction/download_model.py /opt/src/prediction/download_model.py
-# Download the intended model - we are caching the model in the image
-RUN python /opt/src/prediction/download_model.py
+
+COPY src /opt/src
 
 # Copy entry point and fix_line_endings scripts into the image
 COPY ./entry_point.sh ./fix_line_endings.sh /opt/
@@ -64,18 +61,22 @@ RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && chown -R 1000:1000 /opt \
     && chmod -R 777 /opt
 
-# Copy source code into image and set permissions
-COPY src /opt/src
 
 # Set working directory
 WORKDIR /opt/src
 
+
+
 ENV PYTHONUNBUFFERED=TRUE \
     PYTHONDONTWRITEBYTECODE=TRUE \
     PATH="/opt/src:${PATH}" \
+    PYTHONPATH="/opt/src:${PYTHONPATH}" \
     TORCH_HOME="/opt" \
     MPLCONFIGDIR="/opt" \
     HF_HOME="/opt"
+
+# Download the intended model - we are caching the model in the image
+RUN python /opt/src/prediction/download_model.py
 
 # Set non-root user and set entrypoint
 USER 1000
