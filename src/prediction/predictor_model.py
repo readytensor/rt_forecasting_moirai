@@ -1,12 +1,12 @@
 import os
-from contextlib import contextmanager
-from copy import deepcopy
-from pathlib import Path
-from typing import Iterator, Optional, Union
 import torch
-import torch.nn as nn
+
 import numpy as np
 import pandas as pd
+import torch.nn as nn
+from contextlib import contextmanager
+from copy import deepcopy
+from typing import Iterator, Optional, Union
 from gluonts.dataset.common import Dataset
 from gluonts.dataset.loader import InferenceDataLoader
 from gluonts.model.forecast import Forecast
@@ -15,11 +15,9 @@ from gluonts.model.predictor import Predictor
 from gluonts.torch.batchify import batchify
 from gluonts.transform import SelectFields, TestSplitSampler
 from gluonts.transform.split import TFTInstanceSplitter
-from uni2ts.model.moirai.forecast import MoiraiForecast
 from schema.data_schema import ForecastingSchema
 from prediction.download_model import download_pretrained_model_if_not_exists
-
-count_patches = {}
+from uni2ts.model.moirai import MoiraiModule, MoiraiForecast
 
 
 class CustomizableMoiraiForecast(MoiraiForecast):
@@ -162,8 +160,6 @@ class MoiraiPredictor(Predictor):
                 dataset, self.batch_size, context_length, prediction_length
             )
 
-            count_patches[patch_size] = count_patches.get(patch_size, 0) + 1
-
         with self.prediction_net.custom_config(
             context_length=context_length,
             patch_size=patch_size,
@@ -263,7 +259,6 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
 
         all_forecasts.append(median_forecast)
     all_forecasts = np.array(all_forecasts)
-    print("Number of selected patch sizes:", count_patches)
     return {k: v for k, v in zip(all_ids, all_forecasts)}
 
 
@@ -286,18 +281,20 @@ def load_predictor_model(
         pretrained_model_root_path, model_name=model_name
     )
 
-    ckpt_path = Path(os.path.join(pretrained_model_root_path, "model.ckpt"))
+    prediction_net = CustomizableMoiraiForecast(
+        module=MoiraiModule.from_pretrained(
+            f"Salesforce/{model_name}",
+            cache_dir=pretrained_model_root_path,
+        ),
+        prediction_length=prediction_length,
+        target_dim=1,
+        feat_dynamic_real_dim=0,
+        past_feat_dynamic_real_dim=0,
+        **kwargs,
+    )
 
     model = MoiraiPredictor(
-        prediction_net=CustomizableMoiraiForecast.load_from_checkpoint(
-            checkpoint_path=ckpt_path,
-            prediction_length=prediction_length,
-            target_dim=1,
-            feat_dynamic_real_dim=0,
-            past_feat_dynamic_real_dim=0,
-            map_location="cuda:0" if torch.cuda.is_available() else "cpu",
-            **kwargs,
-        ),
+        prediction_net=prediction_net,
         data_schema=data_schema,
         prediction_length=prediction_length,
         **kwargs,
