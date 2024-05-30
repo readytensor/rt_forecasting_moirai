@@ -61,12 +61,10 @@ RUN chmod +x /opt/entry_point.sh /opt/fix_line_endings.sh \
     && chown -R 1000:1000 /opt \
     && chmod -R 777 /opt
 
-# Copy source code into image and set permissions
 
 # Set working directory
-
-
 WORKDIR /opt/src
+
 # Download the intended model - we are caching the model in the image
 RUN python /opt/src/prediction/download_model.py
 
