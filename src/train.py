@@ -24,7 +24,7 @@ def run_training(
     """
 
     try:
-        with ResourceTracker(logger=logger, monitoring_interval=0.0001):
+        with ResourceTracker(logger=logger, monitoring_interval=0.1, is_train=True):
             logger.info("Starting training...")
             data_schema = load_json_data_schema(input_schema_dir_path)
 
