@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import torch as T
 import transformers
+from config import paths
+import tracemalloc
 
 
 def read_json_as_dict(input_path: str) -> Dict:
@@ -313,23 +315,41 @@ class ResourceTracker(object):
 
     def __enter__(self):
         self.start_time = time.time()
-        if T.cuda.is_available():
-            T.cuda.reset_peak_memory_stats()  # Reset CUDA memory stats
-            T.cuda.empty_cache()  # Clear CUDA cache
-
+        tracemalloc.start()
         self.monitor.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.end_time = time.time()
         self.monitor.stop()
-        cuda_peak = get_peak_memory_usage()
-        if cuda_peak is not None:
-            self.logger.info(f"CUDA Memory allocated (peak): {cuda_peak:.2f} MB")
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
         elapsed_time = self.end_time - self.start_time
+        peak_python_memory_mb = peak / 1024**2
+        process_cpu_peak_memory_mb = self.monitor.get_peak_memory_usage()
+        gpu_peak_memory_mb = get_peak_memory_usage()
 
         self.logger.info(f"Execution time: {elapsed_time:.2f} seconds")
+        self.logger.info(
+            f"Peak Python Allocated Memory: {peak_python_memory_mb:.2f} MB"
+        )
+        self.logger.info(
+            f"Peak CUDA GPU Memory Usage (Incremental): {gpu_peak_memory_mb:.2f} MB"
+        )
+        self.logger.info(
+            f"Peak System RAM Usage (Incremental): {process_cpu_peak_memory_mb:.2f} MB"
+        )
+
+        output = f"""
+Execution time: {elapsed_time:.2f} seconds
+Peak Python Allocated Memory: {peak_python_memory_mb:.2f} MB
+Peak CUDA GPU Memory Usage (Incremental): {gpu_peak_memory_mb:.2f} MB
+Peak System RAM Usage (Incremental): {process_cpu_peak_memory_mb:.2f} MB
+"""
+        resources_fpath = os.path.join(paths.OUTPUT_DIR, "resources.txt")
+        with open(resources_fpath, "w") as f:
+            f.write(output)
 
 
 class MemoryMonitor:
