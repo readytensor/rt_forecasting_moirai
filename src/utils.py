@@ -328,7 +328,7 @@ class ResourceTracker(object):
 
         elapsed_time = self.end_time - self.start_time
         peak_python_memory_mb = peak / 1024**2
-        process_cpu_peak_memory_mb = self.monitor.get_peak_memory()
+        process_cpu_peak_memory_mb = self.monitor.get_peak_memory_usage()
         gpu_peak_memory_mb = get_peak_memory_usage()
 
         self.logger.info(f"Execution time: {elapsed_time:.2f} seconds")
@@ -358,8 +358,8 @@ Peak System RAM Usage (Incremental): {process_cpu_peak_memory_mb:.2f} MB
 
 
 class MemoryMonitor:
-    initial_memory = None
-    peak_memory = 0  # Class variable to store peak memory usage
+    initial_cpu_memory = None
+    peak_cpu_memory = 0  # Class variable to store peak memory usage
 
     def __init__(self, interval=20.0, logger=print):
         self.interval = interval
@@ -372,9 +372,9 @@ class MemoryMonitor:
         total_memory = process.memory_info().rss
 
         # Check if the current memory usage is a new peak and update accordingly
-        MemoryMonitor.peak_memory = max(MemoryMonitor.peak_memory, total_memory)
-        if MemoryMonitor.initial_memory is None:
-            MemoryMonitor.initial_memory = MemoryMonitor.peak_memory
+        self.peak_cpu_memory = max(self.peak_cpu_memory, total_memory)
+        if self.initial_cpu_memory is None:
+            self.initial_cpu_memory = self.peak_cpu_memory
 
     def monitor_loop(self):
         """Runs the monitoring process in a loop."""
@@ -400,11 +400,16 @@ class MemoryMonitor:
         """Stops the periodic monitoring"""
         self.running = False
         self.thread.join()  # Wait for the monitoring thread to finish
-        self.logger.info(
-            f"CPU Memory allocated (peak): {(MemoryMonitor.peak_memory - MemoryMonitor.initial_memory)/ (1024**2):.2f} MB"
-        )
+
+    def get_peak_memory_usage(self):
+        # Convert both CPU and GPU memory usage from bytes to megabytes
+        incremental_cpu_peak_memory = (
+            self.peak_cpu_memory - self.initial_cpu_memory
+        ) / (1024**2)
+
+        return incremental_cpu_peak_memory
 
     @classmethod
     def get_peak_memory(cls):
         """Returns the peak memory usage"""
-        return cls.peak_memory
+        return cls.peak_cpu_memory
