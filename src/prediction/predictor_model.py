@@ -231,7 +231,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
     freq = model.map_frequency(model.data_schema.frequency)
 
     if "Tenant" in model.data_schema.title:
-        freq = "T15"
+        freq = "15T"
     schema = model.data_schema
     grouped = context.groupby(schema.id_col)
     all_ids = [id for id, _ in grouped]
