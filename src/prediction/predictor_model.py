@@ -228,6 +228,10 @@ def train_predictor_model() -> None:
 
 
 def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
+    freq = model.map_frequency(model.data_schema.frequency)
+
+    if "Tenant" in model.data_schema.title:
+        freq = "T15"
     schema = model.data_schema
     grouped = context.groupby(schema.id_col)
     all_ids = [id for id, _ in grouped]
@@ -247,7 +251,7 @@ def predict_with_model(model: MoiraiPredictor, context: pd.DataFrame):
                         "target": series[schema.target],
                         "start": pd.Period(
                             start,
-                            model.map_frequency(schema.frequency),
+                            freq,
                         ),
                     }
                 ],
