@@ -328,7 +328,7 @@ class ResourceTracker(object):
 
         elapsed_time = self.end_time - self.start_time
         peak_python_memory_mb = peak / 1024**2
-        process_cpu_peak_memory_mb = self.monitor.get_peak_memory_usage()
+        process_cpu_peak_memory_mb = self.monitor.get_peak_memor()
         gpu_peak_memory_mb = get_peak_memory_usage()
 
         self.logger.info(f"Execution time: {elapsed_time:.2f} seconds")
